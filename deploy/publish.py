@@ -198,17 +198,25 @@ def main():
             print('SFTP discovery, read-only. Root entries:')
             for name, kind in sorted(entries.items()):
                 print(kind + ' ' + name)
-            resolved = client.run(['pwd'])
+            resolved = client.run(['cd "webroots"', 'pwd'])
             match = re.search(r'^Remote working directory: (/.+)$', resolved, re.MULTILINE)
             if not match:
                 fail('Kan inte fastställa kanonisk webbrot från SFTP pwd.')
             canonical = match.group(1).strip()
             components(canonical)
             client.ensure_dir(canonical)
-            print('Verified account starting directory: ' + canonical)
+            print('Verified webroots directory: ' + canonical)
             print('Canonical root entries:')
-            for name, kind in sorted(client.listing(canonical).items()):
+            roots = client.listing(canonical)
+            for name, kind in sorted(roots.items()):
                 print(kind + ' ' + name)
+            candidates = [name for name, kind in roots.items() if kind == 'd' and name not in ('.', '..')]
+            if len(candidates) != 1:
+                fail('Antalet möjliga webbrötter kräver separat granskning av listan.')
+            canonical += '/' + candidates[0]
+            client.ensure_dir(canonical)
+            print('Single observed webroot candidate: ' + canonical)
+            print('Webroot files: ' + ', '.join(sorted(client.listing(canonical))))
             import hashlib
             destination = str(Path(temp) / 'remote-index.html')
             client.run(['get "' + canonical + '/index.html" "' + destination + '"'])
