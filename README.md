@@ -80,3 +80,11 @@ För att återställa just manifestets 20 webbplatsfiler kan du kopiera motsvara
 ## Hitta SFTP-mappen utan att gissa
 
 Läget `discover` listar bara posterna i SFTP-roten. Det behöver inte SFTP_REMOTE_DIR och ändrar inga fjärrfiler. Använd listan tillsammans med kontrollpanelen och en jämförelse med backupen för att verifiera webbplatsens riktiga mapp.
+
+## Verifierad One.com-koppling (2 november 2026)
+
+SFTP_REMOTE_DIR är /customers/1/7/f/coohcizea/webroots/9f2a08c7. Den är verifierad genom domänkopplingen evera.care_ i SFTP och matchning av startsidans SHA256 mot den privata File Manager-backupen samt publika hemsidan. Använd inte /www-genvägen. Värdnyckeln matchades mot DNSSEC-signerad SSHFP.
+
+Preview-körning #9 laddade upp 20 filer till https://evera.care/evera-preview-9f5503b915754346842bc9049f9a3c70/. Full HTTP-hashkontroll är inte avslutad eftersom servern svarade med tillfällig 429-begränsning efter tio godkända filer. Browserkontroll visade laddade typsnitt, fem script och spelande MP4-film. Ljudknappen växlade tillstånd; faktisk hörbar kvalitet kräver mänsklig kontroll. Ingen produktion är utförd.
+
+Överföringen är långsam på denna tjänst eftersom sökvägar kontrolleras upprepade gånger. Låt pågående körning få slutstatus före nytt försök. Vid avbrott kan en partiell preview-mapp och tillfälliga .evera-upload-filer finnas kvar. Radera inte andra filer.
