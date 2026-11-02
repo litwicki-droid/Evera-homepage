@@ -198,6 +198,24 @@ def main():
             print('SFTP discovery, read-only. Root entries:')
             for name, kind in sorted(entries.items()):
                 print(kind + ' ' + name)
+            resolved = client.run(['cd "/www"', 'pwd'])
+            match = re.search(r'^Remote working directory: (/.+)$', resolved, re.MULTILINE)
+            if not match:
+                fail('Kan inte fastställa kanonisk webbrot från SFTP pwd.')
+            canonical = match.group(1).strip()
+            components(canonical)
+            client.ensure_dir(canonical)
+            print('Canonical /www target: ' + canonical)
+            print('Canonical root entries:')
+            for name, kind in sorted(client.listing(canonical).items()):
+                print(kind + ' ' + name)
+            import hashlib
+            destination = str(Path(temp) / 'remote-index.html')
+            client.run(['get "' + canonical + '/index.html" "' + destination + '"'])
+            digest = hashlib.sha256(Path(destination).read_bytes()).hexdigest()
+            if digest != '4e97109ce116fe99b897fca0f0d5871c522800998a32ee3df1a6413534b27b81':
+                fail('Startsidan i SFTP-mappen matchar inte den privata säkerhetskopian. Stoppar för granskning.')
+            print('Remote index SHA256 matches private File Manager backup: ' + digest)
         return
     remote = os.environ.get('SFTP_REMOTE_DIR', '')
     components(remote)
