@@ -1,0 +1,62 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+
+  <title>Evera — Every Interaction Counts</title>
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <meta name="description" content="Evera is continuous presence across the care journey: care intelligence that speaks, listens, remembers and detects change.">
+  <meta name="theme-color" content="#141a2b">
+
+  <link rel="canonical" href="https://evera.care/">
+
+  <!-- Delning i sociala medier -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://evera.care/">
+  <meta property="og:site_name" content="Evera">
+  <meta property="og:title" content="Evera — Every Interaction Counts">
+  <meta property="og:description" content="The AI-native operating system for extended care.">
+  <meta property="og:image" content="https://evera.care/assets/images/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Ikoner (favicon.ico i roten ersätter webbhotellets standardikon, bl.a. i Safari) -->
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+
+  <!-- Typsnitt laddas i förväg så att loggan inte hoppar -->
+  <link rel="preload" href="assets/fonts/quicksand-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/main.css">
+
+  <main class="hero" aria-label="Evera">
+    <!-- Bakgrunden (film + mörk ton) lutar lätt i 3D efter muspekaren, se assets/js/tilt.js -->
+    <div class="hero__bg" aria-hidden="true">
+      <!-- Bakgrundsfilm: MP4 för de flesta webbläsare, WebM som reserv. Posterbilden visas tills filmen har laddats. -->
+      <video class="hero__video" poster="assets/images/evera-bg-poster.jpg" autoplay muted loop playsinline preload="auto" aria-hidden="true">
+        <source src="assets/video/evera-bg.mp4" type="video/mp4">
+        <source src="assets/video/evera-bg.webm" type="video/webm">
+      </video>
+      <div class="hero__veil" aria-hidden="true"></div>
+    </div>
+
+    <div class="hero__content">
+      <!-- Den levande loggan: E:et ritas av assets/js/evera-logo.js -->
+      <h1 class="evera" aria-label="Evera" data-evera></h1>
+      <p class="pill" data-text="Every Interaction Counts">Every Interaction Counts</p>
+    </div>
+  </main>
+
+  <!-- Ljud av/på (nere till vänster). Styrs av assets/js/sound.js -->
+  <button class="sound" id="sound-toggle" type="button" aria-pressed="false" title="Ljud av/på (M)">
+    <canvas class="sound__vortex" id="sound-vortex" width="34" height="16" aria-hidden="true"></canvas>
+    <span id="sound-label">Sound: Off</span>
+  </button>
+
+  <script src="assets/js/evera-logo.js" defer></script>
+  <script src="assets/js/sound.js" defer></script>
+  <script src="assets/js/zap.js" defer></script>
+  <script src="assets/js/tilt.js" defer></script>
+  <script src="assets/js/main.js" defer></script>
+
+</body></html>
