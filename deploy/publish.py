@@ -198,14 +198,14 @@ def main():
             print('SFTP discovery, read-only. Root entries:')
             for name, kind in sorted(entries.items()):
                 print(kind + ' ' + name)
-            resolved = client.run(['cd "/www"', 'pwd'])
+            resolved = client.run(['pwd'])
             match = re.search(r'^Remote working directory: (/.+)$', resolved, re.MULTILINE)
             if not match:
                 fail('Kan inte fastställa kanonisk webbrot från SFTP pwd.')
             canonical = match.group(1).strip()
             components(canonical)
             client.ensure_dir(canonical)
-            print('Canonical /www target: ' + canonical)
+            print('Verified account starting directory: ' + canonical)
             print('Canonical root entries:')
             for name, kind in sorted(client.listing(canonical).items()):
                 print(kind + ' ' + name)
