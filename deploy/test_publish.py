@@ -104,3 +104,7 @@ class Tests(unittest.TestCase):
         self.assertNotEqual(denied.returncode,0); self.assertEqual(denied.stdout,'')
 
 if __name__ == '__main__': unittest.main()
+
+class OneComFormat(unittest.TestCase):
+    def test_unknown_link_count(self):
+        self.assertEqual(p.parse_listing("drwxr-xr-x ? 0 0 4096 Nov 02 14:00 /."), {"/.": "d"})
