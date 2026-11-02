@@ -102,8 +102,14 @@ class SFTP:
 
     def run(self, commands):
         try:
-            result = subprocess.run(self.cmd, input='\n'.join(commands)+'\n',
-                text=True, capture_output=True, env=self.env, start_new_session=True, timeout=120)
+            # A private local file avoids waiting for inherited PIPE handles in the
+            # multiplexing master. No raw stderr or password reaches Actions logs.
+            with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as output:
+                result = subprocess.run(self.cmd, input='\n'.join(commands)+'\n',
+                    text=True, stdout=output, stderr=subprocess.DEVNULL,
+                    env=self.env, start_new_session=True, timeout=120)
+                output.seek(0)
+                stdout = output.read()
         except FileNotFoundError:
             fail('OpenSSH sftp hittades inte. Installera OpenSSH-klienten innan körning.')
         except subprocess.TimeoutExpired:
@@ -111,7 +117,7 @@ class SFTP:
         if result.returncode:
             # Never relay raw client/server output; it may contain sensitive data.
             fail('SFTP misslyckades. Kontrollera värdnyckel, inloggning, sökväg och behörighet. Ingen rå serverlogg visas. En skrivning kan ha hunnit ske.')
-        return result.stdout
+        return stdout
 
     def listing(self, path):
         entries = parse_listing(self.run(['ls -lan "'+path+'"']))
