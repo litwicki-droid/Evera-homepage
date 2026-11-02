@@ -1,0 +1,24 @@
+{
+  "files": [
+    "assets/css/main.css",
+    "assets/fonts/inter-500.woff2",
+    "assets/fonts/quicksand-700.woff2",
+    "assets/icons/apple-touch-icon.png",
+    "assets/icons/favicon-32.png",
+    "assets/icons/favicon.svg",
+    "assets/icons/icon-192.png",
+    "assets/icons/icon-512.png",
+    "assets/images/evera-bg-poster.jpg",
+    "assets/images/og-image.jpg",
+    "assets/js/evera-logo.js",
+    "assets/js/main.js",
+    "assets/js/sound.js",
+    "assets/js/tilt.js",
+    "assets/js/zap.js",
+    "assets/video/evera-bg.mp4",
+    "assets/video/evera-bg.webm",
+    "favicon.ico",
+    "index.html",
+    "site.webmanifest"
+  ]
+}

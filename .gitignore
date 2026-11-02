@@ -1,0 +1,12 @@
+# Privata säkerhetskopior och inloggningsuppgifter hör inte hemma i Git.
+*.zip
+*.ZIP
+.env
+.env.*
+!.env.example
+*known_hosts*
+*.pem
+*.key
+__pycache__/
+*.pyc
+.DS_Store

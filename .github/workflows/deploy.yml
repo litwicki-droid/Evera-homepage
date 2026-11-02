@@ -1,0 +1,55 @@
+name: Evera SFTP
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'check läser bara, preview skapar egen mapp, production ändrar live'
+        type: choice
+        options: [discover, check, preview, production]
+        default: check
+        required: true
+      confirm_production:
+        description: 'Endast produktion: skriv PUBLISH evera.care'
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: evera-sftp-all-publications
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Kontrollera produktionsspärr
+        env:
+          MODE: ${{ inputs.mode }}
+          CONFIRM: ${{ inputs.confirm_production }}
+          ENABLED: ${{ vars.PRODUCTION_ENABLED }}
+        run: |
+          if [ "$MODE" = production ]; then
+            [ "$ENABLED" = true ] && [ "$CONFIRM" = 'PUBLISH evera.care' ] && [ "$GITHUB_REF" = refs/heads/main ] || {
+              echo 'Produktion spärrad: kräver main, PRODUCTION_ENABLED=true och uttrycklig bekräftelse.'; exit 1;
+            }
+          fi
+      # v4.2.2 SHA verified with GitHub API refs/tags/v4.2.2 on 2026-11-02.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Lokala tester
+        run: |
+          python3 -m unittest discover -s deploy -p 'test_*.py' -v
+          python3 deploy/publish.py --dry-run
+      - name: SFTP
+        env:
+          MODE: ${{ inputs.mode }}
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SFTP_KNOWN_HOSTS: ${{ secrets.SFTP_KNOWN_HOSTS }}
+          SFTP_REMOTE_DIR: ${{ vars.SFTP_REMOTE_DIR }}
+          SFTP_PORT: ${{ vars.SFTP_PORT || '22' }}
+          PRODUCTION_ENABLED: ${{ vars.PRODUCTION_ENABLED }}
+          CONFIRM_PRODUCTION: ${{ inputs.confirm_production }}
+        run: python3 deploy/publish.py --mode "$MODE"
