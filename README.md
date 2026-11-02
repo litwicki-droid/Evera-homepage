@@ -88,3 +88,5 @@ SFTP_REMOTE_DIR är /customers/1/7/f/coohcizea/webroots/9f2a08c7. Den är verifi
 Preview-körning #9 laddade upp 20 filer till https://evera.care/evera-preview-9f5503b915754346842bc9049f9a3c70/. Full HTTP-hashkontroll är inte avslutad eftersom servern svarade med tillfällig 429-begränsning efter tio godkända filer. Browserkontroll visade laddade typsnitt, fem script och spelande MP4-film. Ljudknappen växlade tillstånd; faktisk hörbar kvalitet kräver mänsklig kontroll. Ingen produktion är utförd.
 
 Överföringen är långsam på denna tjänst eftersom sökvägar kontrolleras upprepade gånger. Låt pågående körning få slutstatus före nytt försök. Vid avbrott kan en partiell preview-mapp och tillfälliga .evera-upload-filer finnas kvar. Radera inte andra filer.
+
+Slutkontroll: samtliga 20 preview-filer fick HTTP200 och exakt SHA256-matchning när den tillfälliga 429-begränsningen släppt. Rafael gav därefter uttryckligt klartecken till första manuella livepublicering. Produktionsresultat och automatisk publicering ska verifieras separat.
