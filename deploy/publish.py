@@ -179,7 +179,7 @@ def publish(client, target, files, source=ROOT):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', choices=['check','preview','production'], default='check')
+    parser.add_argument('--mode', choices=['discover','check','preview','production'], default='check')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     files = load_manifest()
@@ -191,6 +191,14 @@ def main():
             fail('Produktion är spärrad: aktivera repo-variabeln och skriv exakt PUBLISH evera.care.')
         if os.environ.get('GITHUB_REF') != 'refs/heads/main':
             fail('Produktion måste köras från main.')
+    if args.mode == 'discover':
+        with tempfile.TemporaryDirectory(prefix='evera-discover-') as temp:
+            client = SFTP(temp)
+            entries = client.listing('/')
+            print('SFTP discovery, read-only. Root entries:')
+            for name, kind in sorted(entries.items()):
+                print(kind + ' ' + name)
+        return
     remote = os.environ.get('SFTP_REMOTE_DIR', '')
     components(remote)
     with tempfile.TemporaryDirectory(prefix='evera-deploy-') as temp:
