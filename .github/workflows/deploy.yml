@@ -5,7 +5,7 @@ on:
       mode:
         description: 'check läser bara, preview skapar egen mapp, production ändrar live'
         type: choice
-        options: [check, preview, production]
+        options: [discover, check, preview, production]
         default: check
         required: true
       confirm_production:
