@@ -53,7 +53,7 @@ def parse_listing(output):
         if not line or line.startswith('sftp> ') or line.startswith('Connected to ') or re.fullmatch(r'total \d+', line):
             continue
         # OpenSSH ls -lan: permissions, links, numeric uid/gid, size, date, name.
-        m = re.fullmatch(r'([dl-])[rwxstST-]{9}[+@.]?\s+\d+\s+\d+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+(.+)', line)
+        m = re.fullmatch(r'([dl-])[rwxstST-]{9}[+@.]?\s+(?:\d+|\?)\s+\d+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+(.+)', line)
         if not m:
             fail('Okänt SFTP-listformat. Inga fler ändringar görs.')
         kind, name = m.groups()
@@ -93,6 +93,8 @@ class SFTP:
             '-oBatchMode=no', '-oStrictHostKeyChecking=yes',
             '-oUserKnownHostsFile=' + str(known_path), '-oGlobalKnownHostsFile=/dev/null',
             '-oUpdateHostKeys=no', '-oVerifyHostKeyDNS=no',
+            '-oControlMaster=auto', '-oControlPersist=30',
+            '-oControlPath=' + str(Path(temp) / 'ctl'),
             '-oPreferredAuthentications=password', '-oPubkeyAuthentication=no',
             '-oNumberOfPasswordPrompts=1', '-oConnectTimeout=20',
             '-oServerAliveInterval=15', '-oServerAliveCountMax=2',
@@ -100,8 +102,14 @@ class SFTP:
 
     def run(self, commands):
         try:
-            result = subprocess.run(self.cmd, input='\n'.join(commands)+'\n',
-                text=True, capture_output=True, env=self.env, start_new_session=True, timeout=120)
+            # A private local file avoids waiting for inherited PIPE handles in the
+            # multiplexing master. No raw stderr or password reaches Actions logs.
+            with tempfile.TemporaryFile(mode='w+', encoding='utf-8') as output:
+                result = subprocess.run(self.cmd, input='\n'.join(commands)+'\n',
+                    text=True, stdout=output, stderr=subprocess.DEVNULL,
+                    env=self.env, start_new_session=True, timeout=120)
+                output.seek(0)
+                stdout = output.read()
         except FileNotFoundError:
             fail('OpenSSH sftp hittades inte. Installera OpenSSH-klienten innan körning.')
         except subprocess.TimeoutExpired:
@@ -109,7 +117,7 @@ class SFTP:
         if result.returncode:
             # Never relay raw client/server output; it may contain sensitive data.
             fail('SFTP misslyckades. Kontrollera värdnyckel, inloggning, sökväg och behörighet. Ingen rå serverlogg visas. En skrivning kan ha hunnit ske.')
-        return result.stdout
+        return stdout
 
     def listing(self, path):
         entries = parse_listing(self.run(['ls -lan "'+path+'"']))
@@ -198,6 +206,22 @@ def main():
             print('SFTP discovery, read-only. Root entries:')
             for name, kind in sorted(entries.items()):
                 print(kind + ' ' + name)
+            resolved = client.run(['cd "/run/webroots/by-route/evera.care_"', 'pwd'])
+            match = re.search(r'^Remote working directory: (/.+)$', resolved, re.MULTILINE)
+            if not match:
+                fail('Kan inte fastställa kanonisk webbrot från SFTP pwd.')
+            canonical = match.group(1).strip()
+            components(canonical)
+            client.ensure_dir(canonical)
+            print('Verified evera.care route target: ' + canonical)
+            print('Webroot files: ' + ', '.join(sorted(client.listing(canonical))))
+            import hashlib
+            destination = str(Path(temp) / 'remote-index.html')
+            client.run(['get "' + canonical + '/index.html" "' + destination + '"'])
+            digest = hashlib.sha256(Path(destination).read_bytes()).hexdigest()
+            if digest != '4e97109ce116fe99b897fca0f0d5871c522800998a32ee3df1a6413534b27b81':
+                fail('Startsidan i SFTP-mappen matchar inte den privata säkerhetskopian. Stoppar för granskning.')
+            print('Remote index SHA256 matches private File Manager backup: ' + digest)
         return
     remote = os.environ.get('SFTP_REMOTE_DIR', '')
     components(remote)
