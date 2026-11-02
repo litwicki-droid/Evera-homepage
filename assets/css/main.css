@@ -1,0 +1,240 @@
+/* ==========================================================================
+   Evera – huvudstilmall
+   1. Typsnitt (ligger lokalt i assets/fonts, inga externa anrop)
+   2. Färger och grundinställningar
+   3. Hero: video, mörk ton, innehåll
+   4. Loggan (E + "vera")
+   5. Orange ruta "Every Interaction Counts"
+   6. Ljudknappen (nere till vänster)
+   7. Tillgänglighet och mobil
+   ========================================================================== */
+
+/* 1. Typsnitt ------------------------------------------------------------- */
+@font-face {
+  font-family: "Quicksand";
+  src: url("../fonts/quicksand-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("../fonts/inter-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 2. Färger och grundinställningar ---------------------------------------- */
+:root {
+  --navy: #141a2b;
+  --terra: #c7703d;        /* Everas orange */
+  --terra-soft: #c8835b;
+  --cream: #f6f3ef;        /* färgen på E och "vera" */
+  --veil-color: 44, 24, 14; /* varm mörk ton över videon (R, G, B) */
+  --veil: 0.4;             /* 0.4 = videon syns med 60 % styrka. 0 = full video, 1 = ingen video */
+
+  --font-logo: "Quicksand", "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-body: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;   /* iPhone förstorar inte texten när telefonen vrids */
+  text-size-adjust: 100%;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--navy);
+  color: var(--cream);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 3. Hero ----------------------------------------------------------------- */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;      /* tar hänsyn till mobilens adressfält */
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  perspective: 1400px;     /* djup för 3D-lutningen */
+  touch-action: pinch-zoom;   /* på mobil styr fingret lutningen i stället för att dra sidan (zoom fungerar fortfarande) */
+  background: #3b2a22;     /* syns om videon inte kan visas */
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+/* Bakgrundslagret som lutar. Det är lite större än skärmen så att inga kanter syns när det lutar. */
+.hero__bg {
+  position: absolute;
+  inset: -5%;
+  z-index: -1;
+  transform: rotateY(var(--tilt-y, 0deg)) rotateX(var(--tilt-x, 0deg)) scale(1.04);
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.hero__video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(var(--veil-color), .84) 0%, rgba(var(--veil-color), 1) 100%);
+  opacity: var(--veil);
+}
+
+.hero__content {
+  transform: translate3d(var(--float-x, 0px), var(--float-y, 0px), 0);   /* loggan svävar lite mot lutningen */
+  will-change: transform;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 3.4vw, 40px);
+  text-align: center;
+}
+
+/* 4. Loggan ---------------------------------------------------------------- */
+.evera {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+  font-family: var(--font-logo);
+  font-weight: 700;
+  font-size: clamp(64px, 12vw, 180px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--cream);
+}
+
+/* E:et: fem rundade staplar i en SVG, ritas av JavaScript */
+.evera .e {
+  display: inline-block;
+  height: 0.71em;
+  width: 0.6em;
+  margin-right: 0.055em;
+  overflow: visible;
+}
+.evera .e rect { fill: currentColor; }
+
+/* 5. Orange ruta ----------------------------------------------------------- */
+.pill {
+  margin: 0;
+  padding: 0.85em 1.4em 0.85em 1.68em; /* lite mer vänster, väger upp bokstavsavståndet */
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--terra) 0%, var(--terra-soft) 100%);
+  box-shadow: 0 6px 18px rgba(44, 24, 14, .25);
+  font: 500 clamp(11px, 1.15vw, 15px)/1 var(--font-body);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--cream);
+  position: relative;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* "Elektrisk stöt" när muspekaren når rutan (styrs av assets/js/zap.js).
+   Rutan darrar diskret, texten delas kort i skivor med röd/blå kant, ~0,25 s. */
+.pill::before,
+.pill::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  border-radius: inherit;
+  background: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+.pill.is-zap { animation: zap-shake .26s steps(1, end) both; }
+.pill.is-zap::before {
+  opacity: 1;
+  color: #fff;
+  text-shadow: -1px 0 rgba(255, 60, 90, .55);
+  animation: zap-slice-a .26s steps(1, end) both;
+}
+.pill.is-zap::after {
+  opacity: 1;
+  color: #fff;
+  text-shadow: 1px 0 rgba(80, 220, 255, .55);
+  animation: zap-slice-b .26s steps(1, end) both;
+}
+@keyframes zap-shake {
+  0%   { transform: translate(0, 0); filter: none; }
+  10%  { transform: translate(-1px, 0) skewX(-2.5deg); filter: brightness(1.12); }
+  22%  { transform: translate(1.5px, 0) skewX(2deg); }
+  36%  { transform: translate(-1px, 0); filter: brightness(1.18); }
+  52%  { transform: translate(1px, 0) skewX(-1deg); filter: brightness(1.05); }
+  70%  { transform: translate(-.5px, 0); filter: none; }
+  100% { transform: none; filter: none; }
+}
+@keyframes zap-slice-a {
+  0%   { clip-path: inset(0 0 70% 0); transform: translateX(-2.5px); }
+  16%  { clip-path: inset(40% 0 35% 0); transform: translateX(3px); }
+  32%  { clip-path: inset(75% 0 5% 0); transform: translateX(-2px); }
+  48%  { clip-path: inset(15% 0 60% 0); transform: translateX(1.5px); }
+  64%, 100% { clip-path: inset(50% 0 50% 0); transform: none; opacity: 0; }
+}
+@keyframes zap-slice-b {
+  0%   { clip-path: inset(60% 0 10% 0); transform: translateX(2px); }
+  16%  { clip-path: inset(10% 0 70% 0); transform: translateX(-2.5px); }
+  32%  { clip-path: inset(30% 0 45% 0); transform: translateX(2px); }
+  48%  { clip-path: inset(80% 0 0 0); transform: translateX(-1.5px); }
+  64%, 100% { clip-path: inset(50% 0 50% 0); transform: none; opacity: 0; }
+}
+
+/* 6. Ljudknappen ------------------------------------------------------------ */
+.sound {
+  position: fixed;
+  z-index: 10;
+  left: max(24px, env(safe-area-inset-left));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+  background: none;
+  border: 0;
+  color: var(--cream);
+  font: 500 12px/1 ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-shadow: 0 1px 6px rgba(44, 24, 14, .35);
+  -webkit-tap-highlight-color: transparent;   /* ingen grå ruta vid tryck på mobil */
+  touch-action: manipulation;                 /* svarar direkt på tryck, ingen dubbeltrycks-zoom */
+  min-height: 44px;                           /* Apples rekommenderade tryckyta */
+}
+.sound:hover { opacity: .85; }
+.sound:focus-visible { outline: 1px solid var(--cream); outline-offset: 4px; border-radius: 4px; }
+
+/* Ikonen: ett vridet band av tunna linjer (ritas i sound.js).
+   Ligger nästan still när ljudet är av och böljar när det är på. */
+.sound__vortex { display: block; width: 34px; height: 16px; }
+
+/* 7. Tillgänglighet och mobil ---------------------------------------------- */
+@media (max-width: 480px) {
+  .pill { letter-spacing: 0.2em; padding: 0.9em 1.2em 0.9em 1.4em; }
+}
+
+/* Den som har valt minskad rörelse får en stillbild i stället för film */
+@media (prefers-reduced-motion: reduce) {
+  .pill.is-zap, .pill.is-zap::before, .pill.is-zap::after { animation: none; opacity: 0; }
+  .pill.is-zap { opacity: 1; }
+  .hero__video { display: none; }
+  .hero { background: #3b2a22 url("../images/evera-bg-poster.jpg") center / cover no-repeat; }
+}
