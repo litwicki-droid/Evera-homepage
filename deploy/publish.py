@@ -93,6 +93,8 @@ class SFTP:
             '-oBatchMode=no', '-oStrictHostKeyChecking=yes',
             '-oUserKnownHostsFile=' + str(known_path), '-oGlobalKnownHostsFile=/dev/null',
             '-oUpdateHostKeys=no', '-oVerifyHostKeyDNS=no',
+            '-oControlMaster=auto', '-oControlPersist=30',
+            '-oControlPath=' + str(Path(temp) / 'ctl'),
             '-oPreferredAuthentications=password', '-oPubkeyAuthentication=no',
             '-oNumberOfPasswordPrompts=1', '-oConnectTimeout=20',
             '-oServerAliveInterval=15', '-oServerAliveCountMax=2',
