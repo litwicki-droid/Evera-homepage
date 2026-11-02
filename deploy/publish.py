@@ -53,9 +53,9 @@ def parse_listing(output):
         if not line or line.startswith('sftp> ') or line.startswith('Connected to ') or re.fullmatch(r'total \d+', line):
             continue
         # OpenSSH ls -lan: permissions, links, numeric uid/gid, size, date, name.
-        m = re.fullmatch(r'([dl-])[rwxstST-]{9}[+@.]?\s+\d+\s+\d+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+(.+)', line)
+        m = re.fullmatch(r'([dl-])[rwxstST-]{9}[+@.]?\s+(?:\d+|\?)\s+\d+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+(.+)', line)
         if not m:
-            fail('Okänt SFTP-listformat. Inga fler ändringar görs. Format: ' + re.sub(r'[A-Za-z]', 'A', re.sub(r'[0-9]', '9', line))[:180])
+            fail('Okänt SFTP-listformat. Inga fler ändringar görs.')
         kind, name = m.groups()
         if kind == 'l':
             name = name.split(' -> ', 1)[0]
