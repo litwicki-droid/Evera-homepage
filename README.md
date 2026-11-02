@@ -76,3 +76,7 @@ SFTP-klienten kan inte låsa serverns filsystem eller göra atomiska lstat-och-r
 Detta är en manuell återställning, inte en automatisk rollback. Packa upp din betrodda backup i en privat separat mapp, inte direkt över repot. Kontrollera arkivets sökvägar före uppackning och undvik arkiv med absoluta sökvägar, `..` eller länkar. Kontrollera sedan vilka filer som ligger direkt i den verkliga webbroten; backupen kan ha en extra `www/`-nivå.
 
 För att återställa just manifestets 20 webbplatsfiler kan du kopiera motsvarande ordinarie filer från den privata backupen till repots webbplatsrot, granska diffen och köra lokala tester, preview och production igen. Skapa gärna en särskild restore-commit så att återställningen går att följa. Kopiera inte in zip-filen eller hemligheter. Om backupen har en annan filuppsättning, serverkonfiguration eller fler filer måste återställningen göras manuellt via one.coms filhanterare/SFTP efter separat granskning. Den här publiceringen återställer inte sådana filer och tar inte bort nya extrafiler. Behåll backupen tills du verifierat sidan i webbläsaren.
+
+## Hitta SFTP-mappen utan att gissa
+
+Läget `discover` listar bara posterna i SFTP-roten. Det behöver inte SFTP_REMOTE_DIR och ändrar inga fjärrfiler. Använd listan tillsammans med kontrollpanelen och en jämförelse med backupen för att verifiera webbplatsens riktiga mapp.
