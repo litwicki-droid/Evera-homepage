@@ -124,6 +124,16 @@
   function cancelAll(node) { node.getAnimations().forEach(function (a) { a.cancel(); }); }
 
   var isOpen = false, busy = false, active = null, lineIx = 0;
+
+  // Flytta fokus bara för den som använder tangentbordet. Med mus/touch tas fokus
+  // bort i stället, annars ritar webbläsaren ibland en fokusram runt knapparna.
+  var usingKeyboard = false;
+  document.addEventListener('keydown', function (e) { if (e.key === 'Tab' || e.key === 'Enter' || e.key === ' ') usingKeyboard = true; }, true);
+  document.addEventListener('pointerdown', function () { usingKeyboard = false; }, true);
+  function moveFocus(node) {
+    if (usingKeyboard) node.focus({ preventScroll: true });
+    else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
   var pillSize = { w: 0, h: 0 };
 
   // ---- växa / krympa på plats ----
@@ -155,7 +165,7 @@
         box.classList.add('is-ready');          // innehållet tonas in
         if (ok) eachSwarm(function (s) { s.restart(); s.resume(); });
         isOpen = true; busy = false;
-        MODES.presence.button.focus({ preventScroll: true });
+        moveFocus(MODES.presence.button);
       };
     }, ZAP_WAIT);
   }
@@ -180,7 +190,7 @@
       anim.cancel();
       pill.hidden = false;
       isOpen = false; busy = false;
-      pill.focus({ preventScroll: true });
+      moveFocus(pill);
     };
   }
 
@@ -220,7 +230,7 @@
     if (window.everaSound && window.everaSound.duck) window.everaSound.duck(true);   // musiken tystnar så att mikrofonen inte hör den
     setStatus('Starting the microphone…');
     startMic();   // klicket räknas som tillåtelse att fråga om mikrofonen
-    backBtn.focus({ preventScroll: true });
+    moveFocus(backBtn);
   }
   function closeStage(silent) {
     if (!active) return;
@@ -232,7 +242,7 @@
     var btn = active.button;
     active = null;
     stage.hidden = true; chooser.hidden = false; box.classList.remove('is-stage');
-    if (!silent) { eachSwarm(function (s) { s.resume(); }); btn.focus({ preventScroll: true }); }
+    if (!silent) { eachSwarm(function (s) { s.resume(); }); moveFocus(btn); }
   }
   backBtn.addEventListener('click', function () { closeStage(false); });
 
