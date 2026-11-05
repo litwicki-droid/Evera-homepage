@@ -1,28 +1,30 @@
 /*
- * Evera – röstlägen bakom den orange rutan
+ * Evera – röstlägen inbäddade i startsidan
  * ---------------------------------------------------------------
- * Klick på "Every Interaction Counts": rutan darrar (zap.js) och expanderar
- * sedan mjukt till en panel med två levande val byggda av kulor
+ * Klick på "Every Interaction Counts": rutan darrar (zap.js) och växer sedan
+ * på sin egen plats under loggan till en blå ruta, inbäddad i sidan (inget
+ * lager ovanpå). I rutan finns två levande val byggda av kulor
  * (assets/js/evera-swarm.js):
  *
  *   1. Evera – Your Presence  (E-loggan)
  *   2. Evera – For Family     (kugghjulet)
  *
- * Klick på ett val öppnar mikrofonläget i helskärm. Kryss, Esc eller klick
- * utanför panelen drar ihop den till rutan igen.
+ * Klick på ett val öppnar mikrofonläget inne i samma ruta. Den lilla orange
+ * etiketten överst i rutan (eller Esc) krymper tillbaka den till den orange rutan.
  * Stilar: assets/css/main.css, avsnitt 8.
  */
 (function () {
   'use strict';
 
   var pill = document.querySelector('.pill');
-  if (!pill || !window.EveraSwarm) return;
+  var hero = document.querySelector('.hero');
+  if (!pill || !hero || !window.EveraSwarm) return;
 
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var EASE = 'cubic-bezier(.22,.8,.24,1)';
-  var OPEN_MS = reduce ? 1 : 720, CLOSE_MS = reduce ? 1 : 520, ZAP_WAIT = reduce ? 0 : 300;
+  var OPEN_MS = reduce ? 1 : 760, CLOSE_MS = reduce ? 1 : 560, ZAP_WAIT = reduce ? 0 : 300;
   var CANVAS_SCALE = 2.2;                       // ritytan är 2,2 gånger valkortet, så molnet aldrig klipps
-  var TILE_ZOOM = 1.55 / CANVAS_SCALE, STAGE_ZOOM = 1.15;
+  var TILE_ZOOM = 1.55 / CANVAS_SCALE, STAGE_ZOOM = 1.05;
 
   var MODES = {
     presence: {
@@ -43,17 +45,41 @@
     return e;
   }
 
-  var panel = el('div', 'vpanel', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Talk with Evera', hidden: '' });
-  var skin = el('div', 'vpanel__skin', { 'aria-hidden': 'true' });       // orange yta som tonar bort
-  var skinText = el('span', 'vpanel__skin-text'); skinText.textContent = pill.textContent.trim();
+  var label = pill.textContent.trim();
+  var box = el('section', 'vembed', { 'aria-label': 'Talk with Evera', hidden: '' });
+  var skin = el('div', 'vembed__skin', { 'aria-hidden': 'true' });     // orange yta som tonar bort
+  var skinText = el('span', 'vembed__skin-text'); skinText.textContent = label;
   skin.appendChild(skinText);
-  var inner = el('div', 'vpanel__inner');
-  var closeBtn = el('button', 'vpanel__close', { type: 'button', 'aria-label': 'Close' });
-  closeBtn.textContent = '×';
-  var hint = el('p', 'vpanel__hint'); hint.textContent = 'Choose how you want to talk with Evera';
-  var options = el('div', 'vpanel__options');
-  inner.appendChild(closeBtn); inner.appendChild(hint); inner.appendChild(options);
-  panel.appendChild(skin); panel.appendChild(inner);
+  var inner = el('div', 'vembed__inner');
+
+  var collapseBtn = el('button', 'vembed__label', { type: 'button', 'aria-expanded': 'true', title: 'Close' });
+  collapseBtn.textContent = label;
+
+  var chooser = el('div', 'vembed__chooser');
+  var hint = el('p', 'vembed__hint'); hint.textContent = 'Choose how you want to talk with Evera';
+  var options = el('div', 'vembed__options');
+  chooser.appendChild(hint); chooser.appendChild(options);
+
+  var stage = el('div', 'vembed__stage', { hidden: '', 'aria-live': 'polite' });
+  stage.innerHTML =
+    '<div class="vstage__view"></div>' +
+    '<div class="vstage__top">' +
+      '<button class="vbtn vbtn--back" type="button">← Back</button>' +
+      '<h2 class="vstage__title">Evera<span></span></h2>' +
+      '<span class="vstage__spacer" aria-hidden="true"></span>' +
+    '</div>' +
+    '<div class="vstage__bottom">' +
+      '<p class="vstage__status"></p>' +
+      '<div class="vstage__row">' +
+        '<button class="vbtn" type="button" data-act="mic" aria-pressed="false">🎙 Microphone</button>' +
+        '<button class="vbtn" type="button" data-act="hold" hidden>Hold to talk</button>' +
+        '<button class="vbtn" type="button" data-act="speak">Let Evera speak</button>' +
+      '</div>' +
+    '</div>';
+
+  inner.appendChild(collapseBtn); inner.appendChild(chooser); inner.appendChild(stage);
+  box.appendChild(skin); box.appendChild(inner);
+  pill.parentNode.insertBefore(box, pill.nextSibling);
 
   Object.keys(MODES).forEach(function (key) {
     var m = MODES[key];
@@ -71,24 +97,6 @@
     b.addEventListener('click', function () { openStage(key); });
   });
 
-  var backdrop = el('div', 'vbackdrop', { hidden: '' });
-
-  var stage = el('section', 'vstage', { hidden: '', 'aria-live': 'polite', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Evera microphone mode' });
-  stage.innerHTML =
-    '<div class="vstage__view"></div>' +
-    '<div class="vstage__top">' +
-      '<button class="vbtn vbtn--back" type="button">← Back</button>' +
-      '<h2 class="vstage__title">Evera<span></span></h2>' +
-      '<span class="vstage__spacer" aria-hidden="true"></span>' +
-    '</div>' +
-    '<div class="vstage__bottom">' +
-      '<p class="vstage__status"></p>' +
-      '<div class="vstage__row">' +
-        '<button class="vbtn" type="button" data-act="mic" aria-pressed="false">🎙 Microphone</button>' +
-        '<button class="vbtn" type="button" data-act="hold" hidden>Hold to talk</button>' +
-        '<button class="vbtn" type="button" data-act="speak">Let Evera speak</button>' +
-      '</div>' +
-    '</div>';
   var stageView = stage.querySelector('.vstage__view');
   var stageTitle = stage.querySelector('.vstage__title span');
   var status = stage.querySelector('.vstage__status');
@@ -97,11 +105,7 @@
   var holdBtn = stage.querySelector('[data-act="hold"]');
   var speakBtn = stage.querySelector('[data-act="speak"]');
 
-  document.body.appendChild(backdrop);
-  document.body.appendChild(panel);
-  document.body.appendChild(stage);
-
-  // ---- svärmarna skapas först när panelen öppnas första gången ----
+  // ---- svärmarna skapas först när rutan öppnas första gången ----
   var mounted = false;
   function mountSwarms() {
     if (mounted) return true;
@@ -117,46 +121,38 @@
     return ok;
   }
   function eachSwarm(fn) { Object.keys(MODES).forEach(function (k) { if (MODES[k].swarm) fn(MODES[k].swarm, MODES[k]); }); }
-
-  // ---- panelens storlek och läge ----
-  function targetRect() {
-    var vw = window.innerWidth, vh = window.innerHeight;
-    var w = Math.min(980, vw - 24), h = Math.min(640, vh - 32);
-    if (vw < 600) h = Math.min(vh - 24, Math.max(420, w * 1.15));
-    return { left: (vw - w) / 2, top: (vh - h) / 2, width: w, height: h };
-  }
-  function rectOf(node) { var r = node.getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height }; }
-  function px(r) { return { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' }; }
-  function place(r) { var p = px(r); Object.keys(p).forEach(function (k) { panel.style[k] = p[k]; }); }
+  function cancelAll(node) { node.getAnimations().forEach(function (a) { a.cancel(); }); }
 
   var isOpen = false, busy = false, active = null, lineIx = 0;
+  var pillSize = { w: 0, h: 0 };
 
+  // ---- växa / krympa på plats ----
   function open() {
     if (isOpen || busy) return;
     busy = true;
     if (window.everaZap) window.everaZap(true);
     setTimeout(function () {
-      var from = rectOf(pill), to = targetRect();
-      var pillRadius = from.height / 2;
-      place(to);
-      panel.hidden = false; backdrop.hidden = false;
-      panel.classList.remove('is-ready');
-      pill.classList.add('is-expanded');
+      var r = pill.getBoundingClientRect();
+      pillSize = { w: r.width, h: r.height };
       var ok = mountSwarms();
       eachSwarm(function (s) { s.setZoom(TILE_ZOOM); s.setLoop(true); s.restart(); s.pause(); });
 
-      skin.getAnimations().forEach(function (x) { x.cancel(); });
-      skinText.getAnimations().forEach(function (x) { x.cancel(); });
-      skinText.animate([{ opacity: 1 }, { opacity: 0, offset: 0.3 }, { opacity: 0 }], { duration: OPEN_MS, fill: 'forwards' });
-      var anim = panel.animate([
-        { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px', borderRadius: pillRadius + 'px' },
-        { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px', borderRadius: '32px' }
+      // rutan tar pillrets plats i flödet och växer till sin naturliga storlek
+      pill.hidden = true;
+      box.hidden = false;
+      box.classList.remove('is-ready');
+      hero.classList.add('is-voice');           // loggan krymper lite så att allt ryms
+      var to = box.getBoundingClientRect();
+      cancelAll(box); cancelAll(skin); cancelAll(skinText);
+      var anim = box.animate([
+        { width: pillSize.w + 'px', height: pillSize.h + 'px', borderRadius: (pillSize.h / 2) + 'px' },
+        { width: to.width + 'px', height: to.height + 'px', borderRadius: '28px' }
       ], { duration: OPEN_MS, easing: EASE });
       skin.animate([{ opacity: 1 }, { opacity: 1, offset: 0.35 }, { opacity: 0 }], { duration: OPEN_MS, easing: 'ease-out', fill: 'forwards' });
-      backdrop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: OPEN_MS, easing: 'ease-out' });
+      skinText.animate([{ opacity: 1 }, { opacity: 0, offset: 0.3 }, { opacity: 0 }], { duration: OPEN_MS, fill: 'forwards' });
 
       anim.onfinish = function () {
-        panel.classList.add('is-ready');      // innehållet tonas in
+        box.classList.add('is-ready');          // innehållet tonas in
         if (ok) eachSwarm(function (s) { s.restart(); s.resume(); });
         isOpen = true; busy = false;
         MODES.presence.button.focus({ preventScroll: true });
@@ -168,34 +164,30 @@
     if (!isOpen || busy) return;
     if (active) closeStage(true);
     busy = true;
-    panel.classList.remove('is-ready');
+    box.classList.remove('is-ready');
     eachSwarm(function (s) { s.pause(); });
-    var from = rectOf(panel), to = rectOf(pill);
-    var anim = panel.animate([
-      { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px', borderRadius: '32px' },
-      { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px', borderRadius: (to.height / 2) + 'px' }
+    var from = box.getBoundingClientRect();
+    hero.classList.remove('is-voice');
+    cancelAll(skin); cancelAll(skinText);
+    var anim = box.animate([
+      { width: from.width + 'px', height: from.height + 'px', borderRadius: '28px' },
+      { width: pillSize.w + 'px', height: pillSize.h + 'px', borderRadius: (pillSize.h / 2) + 'px' }
     ], { duration: CLOSE_MS, easing: EASE, fill: 'forwards' });
-    skin.getAnimations().forEach(function (x) { x.cancel(); });
-    skinText.getAnimations().forEach(function (x) { x.cancel(); });
-    skinText.animate([{ opacity: 0 }, { opacity: 0, offset: 0.7 }, { opacity: 1 }], { duration: CLOSE_MS, fill: 'forwards' });
     skin.animate([{ opacity: 0 }, { opacity: 1 }], { duration: CLOSE_MS, easing: 'ease-in', fill: 'forwards' });
-    backdrop.animate([{ opacity: 1 }, { opacity: 0 }], { duration: CLOSE_MS, easing: 'ease-in', fill: 'forwards' });
+    skinText.animate([{ opacity: 0 }, { opacity: 0, offset: 0.7 }, { opacity: 1 }], { duration: CLOSE_MS, fill: 'forwards' });
     anim.onfinish = function () {
-      panel.hidden = true; backdrop.hidden = true;
+      box.hidden = true;
       anim.cancel();
-      backdrop.getAnimations().forEach(function (a) { a.cancel(); });
-      pill.classList.remove('is-expanded');
+      pill.hidden = false;
       isOpen = false; busy = false;
       pill.focus({ preventScroll: true });
     };
   }
 
   pill.addEventListener('click', open);
-  closeBtn.addEventListener('click', close);
-  backdrop.addEventListener('click', close);
-  window.addEventListener('resize', function () { if (isOpen && !busy) place(targetRect()); });
+  collapseBtn.addEventListener('click', close);
 
-  // ---- mikrofonläge ----
+  // ---- mikrofonläge inne i rutan ----
   function setStatus(t) { status.textContent = t; }
 
   function startMic() {
@@ -222,7 +214,7 @@
     active.swarm.setZoom(STAGE_ZOOM);
     active.swarm.setLoop(false);
     stageTitle.textContent = active.title;
-    stage.hidden = false;
+    chooser.hidden = true; stage.hidden = false; box.classList.add('is-stage');
     if (!reduce) stage.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: 'ease-out' });
     micBtn.hidden = false; holdBtn.hidden = true;
     if (window.everaSound && window.everaSound.duck) window.everaSound.duck(true);   // musiken tystnar så att mikrofonen inte hör den
@@ -239,9 +231,8 @@
     active.swarm.setLoop(true);
     var btn = active.button;
     active = null;
-    stage.hidden = true;
-    if (!silent) eachSwarm(function (s) { s.resume(); });
-    if (!silent) btn.focus({ preventScroll: true });
+    stage.hidden = true; chooser.hidden = false; box.classList.remove('is-stage');
+    if (!silent) { eachSwarm(function (s) { s.resume(); }); btn.focus({ preventScroll: true }); }
   }
   backBtn.addEventListener('click', function () { closeStage(false); });
 

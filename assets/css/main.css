@@ -245,80 +245,93 @@ html, body {
   .hero { background: #3b2a22 url("../images/evera-bg-poster.jpg") center / cover no-repeat; }
 }
 
-/* 8. Röstlägen bakom den orange rutan --------------------------------------
-   Klick på rutan: den darrar och expanderar till en panel med två levande val
-   (E-loggan och kugghjulet av kulor). Valt läge öppnas i helskärm med mikrofon. */
-.vpanel[hidden], .vbackdrop[hidden], .vstage[hidden], .vbtn[hidden] { display: none !important; }
+/* 8. Röstlägen inbäddade i startsidan --------------------------------------
+   Klick på rutan: den darrar och växer på sin plats under loggan till en blå
+   ruta med två levande val (E-loggan och kugghjulet av kulor). Valt läge öppnas
+   inne i samma ruta. Etiketten överst krymper tillbaka den. (assets/js/evera-voice.js) */
+.pill[hidden], .vembed[hidden], .vembed__chooser[hidden], .vembed__stage[hidden], .vbtn[hidden] { display: none !important; }
 
-.vbackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 39;
-  background: rgba(12, 14, 22, .55);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
+/* loggan krymper lite medan rutan är öppen, så att allt ryms på skärmen */
+.evera { transition: font-size .7s cubic-bezier(.22,.8,.24,1); }
+.hero.is-voice .evera { font-size: clamp(44px, 7vw, 104px); }
+.hero.is-voice .hero__content { gap: clamp(14px, 2.4vh, 28px); }
 
-.vpanel {
-  position: fixed;
-  z-index: 40;
+.vembed {
+  position: relative;
+  width: min(900px, calc(100vw - 32px));
+  height: clamp(360px, calc(100vh - 290px), 580px);
+  height: clamp(360px, calc(100svh - 290px), 580px);
   overflow: hidden;
-  border-radius: 32px;
-  background: radial-gradient(ellipse at 50% 42%, #232c45 0%, var(--navy) 70%) var(--navy);
-  box-shadow: 0 30px 80px rgba(10, 8, 6, .45);
+  border-radius: 28px;
+  background: rgba(20, 26, 43, .86);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 50px rgba(20, 10, 4, .35), inset 0 0 0 1px rgba(246, 243, 239, .08);
   color: var(--cream);
+  text-align: center;
 }
 /* den orange ytan som tonar bort när rutan växer */
-.vpanel__skin {
+.vembed__skin {
   position: absolute;
   inset: 0;
-  z-index: 2;
-  background: linear-gradient(135deg, var(--terra) 0%, var(--terra-soft) 100%);
-  pointer-events: none;
+  z-index: 3;
   display: grid;
   place-items: center;
+  background: linear-gradient(135deg, var(--terra) 0%, var(--terra-soft) 100%);
+  pointer-events: none;
 }
-/* rutans text ligger kvar i mitten och tonar ut när rutan växer */
-.vpanel__skin-text {
+.vembed__skin-text {
   font: 500 clamp(11px, 1.15vw, 15px)/1 var(--font-body);
   letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--cream);
-  white-space: nowrap;
   padding-left: 0.28em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--cream);
 }
-.vpanel__inner {
+.vembed__inner {
   position: absolute;
   inset: 0;
   z-index: 1;
+  opacity: 0;
+  transition: opacity .35s ease-out;
+}
+.vembed.is-ready .vembed__inner { opacity: 1; }
+
+/* liten orange etikett överst: krymper tillbaka rutan */
+.vembed__label {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: .7em 1.2em .7em 1.42em;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--terra) 0%, var(--terra-soft) 100%);
+  color: var(--cream);
+  font: 500 10px/1 var(--font-body);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.vembed__label:hover { filter: brightness(1.08); }
+.vembed__label:focus-visible { outline: 2px solid var(--cream); outline-offset: 3px; }
+.vembed.is-stage .vembed__label { display: none; }
+
+.vembed__chooser {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(16px, 3vh, 32px);
-  padding: 56px max(16px, 3vw) 32px;
-  opacity: 0;
-  transition: opacity .35s ease-out;
+  gap: clamp(10px, 2vh, 22px);
+  padding: 56px 16px 20px;
 }
-.vpanel.is-ready .vpanel__inner { opacity: 1; }
-.vpanel__close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 3;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid rgba(246, 243, 239, .22);
-  background: rgba(246, 243, 239, .06);
-  color: var(--cream);
-  font: 400 24px/1 var(--font-body);
-  cursor: pointer;
-}
-.vpanel__close:hover { background: rgba(246, 243, 239, .14); }
-.vpanel__close:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
-.vpanel__hint { margin: 0; color: rgba(246, 243, 239, .62); font-size: 14px; letter-spacing: .02em; text-align: center; }
-.vpanel__options { display: flex; gap: clamp(16px, 5vw, 64px); justify-content: center; width: 100%; }
+.vembed__hint { margin: 0; color: rgba(246, 243, 239, .62); font-size: 14px; letter-spacing: .02em; }
+.vembed__options { display: flex; gap: clamp(16px, 5vw, 64px); justify-content: center; width: 100%; }
 
 .vopt {
   all: unset;
@@ -327,11 +340,12 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  width: min(38vw, 320px, 52vh);
+  gap: 10px;
+  width: min(38vw, 290px, calc(100vh - 560px));
+  width: min(38vw, 290px, max(150px, calc(100svh - 560px)));
   min-width: 0;
-  border-radius: 24px;
-  padding: 10px 10px 18px;
+  border-radius: 22px;
+  padding: 8px 8px 14px;
   transition: background .25s, transform .25s;
   -webkit-tap-highlight-color: transparent;
 }
@@ -341,18 +355,12 @@ html, body {
 .vopt__view { position: relative; display: block; width: 100%; aspect-ratio: 1; max-width: 100%; }
 /* ritytan är större än kortet och genomskinlig, så utspridda kulor inte klipps */
 .vopt__view canvas { position: absolute; left: -60%; top: -60%; width: 220%; height: 220%; display: block; pointer-events: none; }
-.vopt__name { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
-.vopt__brand { font: 700 clamp(20px, 2.6vw, 28px)/1 var(--font-logo); letter-spacing: .01em; }
+.vopt__name { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.vopt__brand { font: 700 clamp(18px, 2.4vw, 26px)/1 var(--font-logo); letter-spacing: .01em; }
 .vopt__sub { font: 500 clamp(10px, 1.2vw, 12px)/1.2 var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: rgba(246, 243, 239, .62); }
 
-/* mikrofonläget i helskärm */
-.vstage {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: radial-gradient(ellipse at 50% 45%, #232c45 0%, var(--navy) 65%) var(--navy);
-  color: var(--cream);
-}
+/* mikrofonläget inne i rutan */
+.vembed__stage { position: absolute; inset: 0; }
 .vstage__view { position: absolute; inset: 0; }
 .vstage__view canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 .vstage__top {
@@ -362,32 +370,30 @@ html, body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+  padding: 14px 16px 0;
 }
-.vstage__title { margin: 0; flex: 1; min-width: 0; text-align: center; font: 700 clamp(18px, 2.4vw, 24px)/1.2 var(--font-logo); }
-.vstage__title span { display: block; margin-top: 4px; font: 500 .62em var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: rgba(246, 243, 239, .62); }
-.vstage__spacer { width: 112px; flex: none; }
+.vstage__title { margin: 0; flex: 1; min-width: 0; font: 700 clamp(16px, 2.2vw, 22px)/1.2 var(--font-logo); }
+.vstage__title span { display: block; margin-top: 4px; font: 500 .6em var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: rgba(246, 243, 239, .62); }
+.vstage__spacer { width: 104px; flex: none; }
 .vstage__bottom {
   position: absolute;
   left: 0; right: 0; bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  gap: 12px;
+  padding: 0 16px 18px;
 }
-.vstage__status { margin: 0; min-height: 1.4em; text-align: center; font-size: 14px; color: rgba(246, 243, 239, .62); }
+.vstage__status { margin: 0; min-height: 1.4em; font-size: 13px; color: rgba(246, 243, 239, .62); }
 .vstage__row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .vbtn {
-  font: 500 15px/1.4 var(--font-body);
+  font: 500 14px/1.4 var(--font-body);
   color: var(--cream);
   background: rgba(246, 243, 239, .08);
   border: 1px solid rgba(246, 243, 239, .2);
   border-radius: 999px;
-  padding: 11px 20px;
+  padding: 10px 18px;
   cursor: pointer;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
   -webkit-user-select: none;
   user-select: none;
   touch-action: none;
@@ -396,16 +402,18 @@ html, body {
 }
 .vbtn:hover { background: rgba(246, 243, 239, .14); }
 .vbtn:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
-.vbtn--back { width: 112px; flex: none; padding: 9px 14px; white-space: nowrap; }
+.vbtn--back { width: 104px; flex: none; padding: 8px 12px; white-space: nowrap; }
 .vbtn.is-on { border-color: #9fd8ff; background: rgba(159, 216, 255, .16); }
 .vbtn.is-evera { border-color: var(--terra); background: rgba(199, 112, 61, .22); }
 
 @media (max-width: 480px) {
-  .vopt { padding: 6px 4px 12px; gap: 8px; }
+  .vembed { height: clamp(340px, calc(100vh - 200px), 560px); height: clamp(340px, calc(100svh - 200px), 560px); border-radius: 24px; }
+  .vopt { width: 42vw; padding: 6px 4px 10px; gap: 8px; }
   .vopt__sub { letter-spacing: .1em; }
-  .vstage__spacer, .vbtn--back { width: 92px; }
-  .vbtn--back { font-size: 13px; padding: 8px 10px; }
+  .vstage__spacer, .vbtn--back { width: 86px; }
+  .vbtn--back { font-size: 12px; padding: 7px 8px; }
+  .vbtn { font-size: 13px; padding: 9px 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .vpanel__inner, .vopt, .vbtn { transition: none; }
+  .evera, .vembed__inner, .vopt, .vbtn { transition: none; }
 }
