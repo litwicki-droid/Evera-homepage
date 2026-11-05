@@ -22,7 +22,7 @@
  *   swarm.listenMic();            // börja lyssna på mikrofonen
  *   swarm.stopMic();
  *   swarm.attachAudio(audioEl);   // Everas röst som <audio>-element (t.ex. TTS-fil)
- *   swarm.speak('Hej!', 'sv-SE'); // Everas röst via webbläsarens talsyntes
+ *   swarm.speak('Hi!', 'en-US');  // Everas röst via webbläsarens talsyntes (varm kvinnoröst, se VOICE_PREFS)
  *   swarm.setLevel('user'|'evera', 0..1); // egen nivå, t.ex. från en röst-API
  *   swarm.pause(); swarm.resume();        // stoppa/starta animationen (sparar batteri)
  *   swarm.setZoom(1.4);                   // ändra storlek medan den kör
@@ -269,14 +269,36 @@
     // Talsyntes ger inget ljud att mäta, så rösten "spelas" med ett syntetiskt
     // stavelse-mönster medan Evera talar.
     var speaking = false, speakUntil = 0, burst = 0;
+    // Everas röst: en varm, lugn kvinnoröst. Webbläsarens bästa naturliga röst väljs
+    // i den här ordningen (finns den inte tas nästa), och talet görs lite lugnare och mörkare.
+    var VOICE_PREFS = opts.voices || [
+      'Ava (Natural)', 'Emma (Natural)', 'Jenny (Natural)', 'Aria (Natural)', 'Michelle (Natural)',   // Microsoft Edge
+      'Google US English', 'Google UK English Female',                                               // Chrome
+      'Ava (Premium)', 'Ava (Enhanced)', 'Samantha (Enhanced)', 'Allison', 'Ava', 'Samantha', 'Susan', // Mac/iPhone
+      'Sofie (Natural)', 'Hillevi (Natural)', 'Alva (Enhanced)', 'Alva', 'Klara'                       // svenska
+    ];
+    var VOICE_RATE = opts.voiceRate || 0.93, VOICE_PITCH = opts.voicePitch || 0.9;
+    function pickVoice(lang) {
+      if (!window.speechSynthesis) return null;
+      var pre = (lang || 'en').slice(0, 2).toLowerCase();
+      var list = speechSynthesis.getVoices().filter(function (v) { return v.lang && v.lang.toLowerCase().indexOf(pre) === 0; });
+      for (var p = 0; p < VOICE_PREFS.length; p++) {
+        for (var q = 0; q < list.length; q++) if (list[q].name.indexOf(VOICE_PREFS[p]) !== -1) return list[q];
+      }
+      // annars: någon röst som låter kvinnlig, eller den första på rätt språk
+      for (var r = 0; r < list.length; r++) if (/female|woman|samantha|ava|jenny|aria|emma|zira|sofie|hillevi|alva/i.test(list[r].name)) return list[r];
+      return list[0] || null;
+    }
+    if (window.speechSynthesis && speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', function () {});  // laddar röstlistan i Chrome
+
     function speak(text, lang) {
-      var dur = Math.max(2, text.split(/\s+/).length * 0.38);
+      var dur = Math.max(2, text.split(/\s+/).length * 0.38 / VOICE_RATE);
       speaking = true; speakUntil = performance.now() + dur * 1000;
       if (window.speechSynthesis) {
         var u = new SpeechSynthesisUtterance(text);
-        u.lang = lang || 'sv-SE'; u.rate = 1;
-        var voices = speechSynthesis.getVoices().filter(function (v) { return v.lang && v.lang.indexOf((lang || 'sv').slice(0, 2)) === 0; });
-        if (voices.length) u.voice = voices[0];
+        u.lang = lang || 'en-US'; u.rate = VOICE_RATE; u.pitch = VOICE_PITCH;
+        var v = pickVoice(u.lang);
+        if (v) { u.voice = v; u.lang = v.lang; }
         u.onboundary = function () { burst = 1; };
         u.onstart = function () { speakUntil = Infinity; };
         u.onend = function () { speaking = false; };
