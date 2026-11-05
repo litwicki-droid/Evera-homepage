@@ -6,7 +6,8 @@
  * men styrs av röst i stället för en klocka:
  *
  *  - Hela tiden: loggan snurrar runt sin lodräta axel.
- *  - Tyst: staplarna står som ett E. Mittarmen andas lätt.
+ *  - Tyst: staplarna gör som loggan på startsidan, fast lugnare: E:et står en
+ *    stund, glider ut till en mjuk ljudvåg och landar tillbaka som ett E.
  *  - Någon pratar: staplarna glider ut till en ljudvåg och följer rösten
  *    som en equalizer (fem frekvensband, mittstapeln = grundtonen).
  *    Samtidigt sveper en osynlig röstpekare över loggan: där den passerar
@@ -27,7 +28,8 @@
  * Inställningar: EveraSwarm.mount(canvas, {
  *   rotate: 'spin',   // 'spin' = snurrar runt sin axel, 'swing' = pendlar fram och tillbaka
  *   spin: 0.8,        // radianer/sekund vid 'spin' (0 = stilla)
- *   swing: 62         // grader åt varje håll vid 'swing'
+ *   swing: 62,        // grader åt varje håll vid 'swing'
+ *   idleAmp: 0.5      // hur mycket vågen rör sig i vila (0–1)
  * })
  */
 (function () {
@@ -262,6 +264,9 @@
     var bars = [];
     for (var bi = 0; bi < 5; bi++) bars.push({ mix: 0, vel: 0, to: 0, delay: 0, lvl: 0, x0: 0, len: 0, yc: 0 });
     var state = 'e', quiet = 0, amp = 0, ampVel = 0, tw = 0;
+    // vila: samma växling som loggan på startsidan (E 0,9 s, våg 2,8 s), fast lugnare
+    var IDLE_HOLD_E = 0.9, IDLE_HOLD_WAVE = 2.8, IDLE_AMP = opts.idleAmp != null ? opts.idleAmp : 0.5;
+    var idle = true, untilSwitch = 1.5;
     var band = [0, 0, 0, 0, 0];
     // 'spin' (standard): snurrar runt sin axel. 'swing': pendlar fram och tillbaka.
     var ROT = opts.rotate || 'spin';
@@ -320,6 +325,8 @@
       follow(src.evera, Math.max(src.evera.manual, rms(src.evera), eSynth), dt);
       var lu = src.user.level * MOTION, le = src.evera.level * MOTION;
       var level = Math.max(lu, le);
+      // kaos/ordning: varje ny stavelse sprider kulorna lite, mellan stavelserna drar de ihop sig
+      var pulse = (Math.max(0, lu - src.user.slow) + Math.max(0, le - src.evera.slow)) * MOTION;
       moveAgent(agents.user, lu, Math.max(0, lu - src.user.slow), dt);
       moveAgent(agents.evera, le, Math.max(0, le - src.evera.slow), dt);
 
@@ -327,16 +334,28 @@
       for (var c = 0; c < 3; c++) tint[c] = colUser[c] * wu + colEvera[c] * (1 - wu);
       tintAmt += (wt - tintAmt) * (1 - Math.exp(-dt * 4));
 
-      // ---- E <-> ljudvåg, styrt av röst ----
-      if (level > 0.08) { quiet = 0; if (state !== 'wave') go('wave'); }
-      else { quiet += dt; if (quiet > 0.7 && state !== 'e') go('e'); }
-      var sa = spring(amp, ampVel, state === 'wave' ? 1 : 0, state === 'wave' ? 6 : 9, dt);
+      // ---- E <-> ljudvåg ----
+      // Röst: full våg som följer rösten. Tyst: loggans egen lugna växling, som på startsidan.
+      if (level > 0.08) { quiet = 0; idle = false; if (state !== 'wave') go('wave'); }
+      else {
+        quiet += dt;
+        if (!idle && quiet > 0.7) { idle = true; go('e'); untilSwitch = 1.1 + IDLE_HOLD_E; }
+        if (idle && !reduce) {
+          untilSwitch -= dt;
+          if (untilSwitch <= 0) {
+            go(state === 'e' ? 'wave' : 'e');
+            untilSwitch = state === 'wave' ? 1.6 + IDLE_HOLD_WAVE : 1.1 + IDLE_HOLD_E;
+          }
+        }
+      }
+      var ampTo = state === 'wave' ? (idle ? IDLE_AMP : 1) : 0;
+      var sa = spring(amp, ampVel, ampTo, state === 'wave' ? (idle ? 4.5 : 6) : 9, dt);
       amp = sa[0]; ampVel = sa[1];
 
       band[0] = band[1] = band[2] = band[3] = band[4] = 0;
       var real = bands(src.user, band);
       real = bands(src.evera, band) || real;
-      tw += dt * (0.6 + 1.6 * level);  // vågens tempo följer rösten
+      tw += dt * (idle ? 1.25 : 0.6 + 1.6 * level);  // vila: loggans tempo, röst: tempot följer rösten
 
       for (var b = 0; b < 5; b++) {
         var B = bars[b];
@@ -344,9 +363,13 @@
         else { var r2 = spring(B.mix, B.vel, B.to, B.to ? 5.5 : 6.5, dt); B.mix = r2[0]; B.vel = r2[1]; }
         // stapelns ljudnivå: riktiga frekvensband om de finns, annars loggans vågmönster gånger rösten
         var pat = 0.8 * (0.5 + 0.5 * Math.sin(tw * 3.6 - b * 0.95)) + 0.2 * (0.5 + 0.5 * Math.sin(tw * 7.2 - b * 1.9));
-        var target = real ? Math.max(band[BAND_OF_BAR[b]] * MOTION, pat * level * 0.5) : pat * Math.min(1, level * 1.4);
-        target = Math.sqrt(Math.min(1, target));  // når längre ut även vid lugnt tal
-        if (state === 'wave') target = Math.max(target, 0.4);  // vågen vilar i mellanläge i pauser
+        var target;
+        if (idle) target = pat;  // vila: loggans lugna ljudstapelmönster
+        else {
+          target = real ? Math.max(band[BAND_OF_BAR[b]] * MOTION, pat * level * 0.5) : pat * Math.min(1, level * 1.4);
+          target = Math.sqrt(Math.min(1, target));  // når längre ut även vid lugnt tal
+          if (state === 'wave') target = Math.max(target, 0.4);  // vågen vilar i mellanläge i korta pauser
+        }
         B.lvl += (target - B.lvl) * (1 - Math.exp(-dt * (target > B.lvl ? 22 : 7)));
 
         var m = Math.min(1, Math.max(0, B.mix));
@@ -394,6 +417,11 @@
           vx += (dx / dd * 0.4 + A.v[0] * 0.35) * push;
           vy += (dy / dd * 0.4 + A.v[1] * 0.35) * push;
           vz += (dz / dd * 0.4 + 0.5) * push;
+        }
+        if (pulse > 0.02) {
+          var pk = pulse * 7 * dt * (0.3 + sd);
+          vx += off[j] * pk; vy += off[j + 1] * pk; vz += off[j + 2] * pk;
+          h += pulse * dt * 1.5;
         }
         if (h > 1) h = 1;
         heat[i] = h;
