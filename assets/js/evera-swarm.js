@@ -123,6 +123,7 @@
     var TL_REST = 0.24, TL_CALM = 0.16;                     // kuggens längd i vila / i lugn våg
     var GEAR_BAND = [0, 1, 2, 3, 4, 3, 2, 1];               // frekvensband per kugge, symmetriskt runt ringen
     var GEAR_SPIN = (opts.gearSpin != null ? opts.gearSpin : 0.6) * (reduce ? 0.3 : 1);  // radianer/sekund
+    var GEAR_K = 30;  // kugghjulets fjäderstyrka
     var NB = SHAPE === 'gear' ? GT : 5;                     // antal rörliga staplar/kuggar
     var ringA = null, ringR = null, ringZ = null, isRing = null;
 
@@ -415,7 +416,8 @@
 
       var gearRot = 0;
       // kugghjulet snurrar rakt runt sin egen mittaxel, lite fortare när någon pratar
-      if (SHAPE === 'gear') { gearSpin -= dt * GEAR_SPIN * (1 + 0.8 * level); gearRot = gearSpin; }
+      var omega = 0;
+      if (SHAPE === 'gear') { omega = -GEAR_SPIN * (1 + 0.8 * level); gearSpin += dt * omega; gearRot = gearSpin; }
       for (var b = 0; b < NB; b++) {
         var B = bars[b];
         if (B.delay > 0) B.delay -= dt;
@@ -512,8 +514,9 @@
         if (h > 1) h = 1;
         heat[i] = h;
 
-        // olika styvhet per kula: några släpar efter i svängarna, det ger flöde
-        var k = K * (0.35 + 0.9 * sd) * (1 - 0.93 * h) * kMove;
+        // E:et: olika styvhet per kula, några släpar efter i svängarna och det ger flöde.
+        // Kugghjulet: lika styva kulor så att kuggarna rör sig rakt in och ut.
+        var k = (SHAPE === 'gear' ? GEAR_K : K * (0.35 + 0.9 * sd)) * (1 - 0.93 * h) * kMove;
         var ax = (tx - px) * k, ay = (ty - py) * k, az = (tz - pz) * k;
         if (h > 0.02) {
           // virvelfält utan källor (curl av ett sinusfält) ger rökliknande slingor
@@ -523,10 +526,17 @@
           var fl = FLOW * h * 0.25;
           ax += cx * fl; ay += cyy * fl + h * 1.0; az += cz * fl + h * 0.4;
         }
-        var ph = sd * 6.283;
-        ax += Math.sin(t * 1.9 + ph) * 0.06; ay += Math.cos(t * 1.5 + ph * 1.3) * 0.06; az += Math.sin(t * 1.7 + ph * 0.7) * 0.06;
-
-        vx = (vx + ax * dt) * damp; vy = (vy + ay * dt) * damp; vz = (vz + az * dt) * damp;
+        if (SHAPE === 'gear') {
+          // följer med i rotationen och dämpas kritiskt: ingen eftersläpning, ingen gungning
+          var cG = 2 * Math.sqrt(k);
+          ax += cG * (-ty * omega - vx); ay += cG * (tx * omega - vy); az += cG * (-vz);
+          vx += ax * dt; vy += ay * dt; vz += az * dt;
+          if (h > 0.02) { var dh = 1 + (damp - 1) * h; vx *= dh; vy *= dh; vz *= dh; }
+        } else {
+          var ph = sd * 6.283;
+          ax += Math.sin(t * 1.9 + ph) * 0.06; ay += Math.cos(t * 1.5 + ph * 1.3) * 0.06; az += Math.sin(t * 1.7 + ph * 0.7) * 0.06;
+          vx = (vx + ax * dt) * damp; vy = (vy + ay * dt) * damp; vz = (vz + az * dt) * damp;
+        }
         vel[j] = vx; vel[j + 1] = vy; vel[j + 2] = vz;
         pos[j] = px + vx * dt; pos[j + 1] = py + vy * dt; pos[j + 2] = pz + vz * dt;
         var spd = Math.sqrt(vx * vx + vy * vy + vz * vz) * 0.3;
