@@ -5,7 +5,7 @@
  * Rörelsen är samma som den levande loggan på startsidan (evera-logo.js),
  * men styrs av röst i stället för en klocka:
  *
- *  - Hela tiden: loggan snurrar långsamt runt sin lodräta axel.
+ *  - Hela tiden: loggan pendlar fram och tillbaka runt sin lodräta axel.
  *  - Tyst: staplarna står som ett E. Mittarmen andas lätt.
  *  - Någon pratar: staplarna glider ut till en ljudvåg och följer rösten
  *    som en equalizer (fem frekvensband, mittstapeln = grundtonen).
@@ -24,7 +24,11 @@
  *   swarm.speak('Hej!', 'sv-SE'); // Everas röst via webbläsarens talsyntes
  *   swarm.setLevel('user'|'evera', 0..1); // egen nivå, t.ex. från en röst-API
  *
- * Inställningar: EveraSwarm.mount(canvas, { spin: 0.5 })  // snurrhastighet, 0 = stilla
+ * Inställningar: EveraSwarm.mount(canvas, {
+ *   rotate: 'swing',  // 'swing' = pendlar fram och tillbaka, 'spin' = snurrar hela varv
+ *   swing: 62,        // grader åt varje håll vid 'swing'
+ *   spin: 0.5         // radianer/sekund vid 'spin'
+ * })
  */
 (function () {
   'use strict';
@@ -259,8 +263,11 @@
     for (var bi = 0; bi < 5; bi++) bars.push({ mix: 0, vel: 0, to: 0, delay: 0, lvl: 0, x0: 0, len: 0, yc: 0 });
     var state = 'e', quiet = 0, amp = 0, ampVel = 0, tw = 0;
     var band = [0, 0, 0, 0, 0];
-    var SPIN = (opts.spin != null ? opts.spin : 0.5) * (reduce ? 0.3 : 1);  // radianer/sekund (0.5 ≈ ett varv på 12 s)
-    var yaw = 0;
+    // 'swing' (standard): pendlar fram och tillbaka. 'spin': snurrar hela varv.
+    var ROT = opts.rotate || 'swing';
+    var SPIN = (opts.spin != null ? opts.spin : 0.5) * (reduce ? 0.3 : 1);  // vid 'spin': radianer/sekund
+    var SWING_DEG = (opts.swing != null ? opts.swing : 62) * (reduce ? 0.3 : 1); // vid 'swing': grader åt varje håll
+    var yaw = 0, swingPh = 0;
 
     function go(to) {
       state = to;
@@ -285,14 +292,15 @@
 
     // röstpekaren vandrar över loggan, fortare ju mer det pratas
     function moveAgent(a, lvl, onset, dt) {
-      a.phase += dt * (0.25 + 2.6 * lvl);
+      a.phase += dt * (0.8 + 5.5 * lvl);
       var ph = a.phase, o = a.off;
-      var x = Math.sin(ph * 1.0 + o) * 0.85, y = Math.sin(ph * 0.77 + o * 1.7) * 0.95, z = 0.1;
+      // svep fram och tillbaka i sidled, långsammare upp och ned
+      var x = Math.sin(ph * 1.0 + o) * 0.95, y = Math.sin(ph * 0.37 + o * 1.7) * 0.9, z = 0.1;
       if (dt > 0) { a.v[0] = (x - a.p[0]) / dt; a.v[1] = (y - a.p[1]) / dt; a.v[2] = 0; }
       a.p[0] = x; a.p[1] = y; a.p[2] = z;
       a.burst = Math.max(a.burst * Math.exp(-dt * 5), Math.min(1, onset * 2.5));
-      a.R = 0.2 + 0.35 * lvl + 0.22 * a.burst;
-      a.S = lvl * (0.55 + 0.6 * a.burst);
+      a.R = 0.28 + 0.45 * lvl + 0.25 * a.burst;
+      a.S = lvl * (0.8 + 0.7 * a.burst);
     }
 
     function step(now) {
@@ -338,6 +346,7 @@
         var pat = 0.8 * (0.5 + 0.5 * Math.sin(tw * 3.6 - b * 0.95)) + 0.2 * (0.5 + 0.5 * Math.sin(tw * 7.2 - b * 1.9));
         var target = real ? Math.max(band[BAND_OF_BAR[b]] * MOTION, pat * level * 0.5) : pat * Math.min(1, level * 1.4);
         target = Math.sqrt(Math.min(1, target));  // når längre ut även vid lugnt tal
+        if (state === 'wave') target = Math.max(target, 0.4);  // vågen vilar i mellanläge i pauser
         B.lvl += (target - B.lvl) * (1 - Math.exp(-dt * (target > B.lvl ? 22 : 7)));
 
         var m = Math.min(1, Math.max(0, B.mix));
@@ -351,12 +360,13 @@
         B.x0 = x; B.len = len; B.yc = b * (T + G) + T / 2;
       }
 
-      // loggan snurrar hela tiden runt sin lodräta axel, med en lätt gungning framåt/bakåt
-      yaw += dt * SPIN;
-      var pitch = Math.sin(t * 0.27) * 0.07;
+      // loggan pendlar fram och tillbaka (eller snurrar), lite livligare när någon pratar
+      if (ROT === 'spin') yaw += dt * SPIN * (1 + 0.6 * level);
+      else { swingPh += dt * (1.8 + 0.8 * level); yaw = Math.sin(swingPh) * SWING_DEG * Math.PI / 180; }
+      var pitch = Math.sin(t * 0.45) * 0.08;
       var cy0 = Math.cos(yaw), sy0 = Math.sin(yaw), cp = Math.cos(pitch), sp0 = Math.sin(pitch);
-      var K = 9, damp = Math.exp(-dt * 2.0), cool = Math.exp(-dt * 1.0);
-      var FQ = 1.8, FLOW = 4.5, ft = t * 0.5, HR = T / 2;
+      var K = 14, damp = Math.exp(-dt * 3.2), cool = Math.exp(-dt * 1.9);
+      var FQ = 1.8, FLOW = 8, ft = t * 1.2, HR = T / 2;
 
       for (var i = 0, j = 0; i < N; i++, j += 3) {
         var sd = seed[i], Bp = bars[barOf[i]];
@@ -379,8 +389,8 @@
           var d2 = dx * dx + dy * dy + dz * dz;
           if (d2 >= A.R * A.R) continue;
           var dd = Math.sqrt(d2) + 1e-5, w = 1 - dd / A.R; w *= w * (0.5 + sd);
-          h += w * A.S * dt * 7;
-          var push = w * A.S * dt * 6;
+          h += w * A.S * dt * 10;
+          var push = w * A.S * dt * 10;
           vx += (dx / dd * 0.4 + A.v[0] * 0.35) * push;
           vy += (dy / dd * 0.4 + A.v[1] * 0.35) * push;
           vz += (dz / dd * 0.4 + 0.5) * push;
@@ -388,7 +398,8 @@
         if (h > 1) h = 1;
         heat[i] = h;
 
-        var k = K * (1 - 0.92 * h);
+        // olika styvhet per kula: några släpar efter i svängarna, det ger flöde
+        var k = K * (0.35 + 0.9 * sd) * (1 - 0.93 * h);
         var ax = (tx - px) * k, ay = (ty - py) * k, az = (tz - pz) * k;
         if (h > 0.02) {
           // virvelfält utan källor (curl av ett sinusfält) ger rökliknande slingor
@@ -396,7 +407,7 @@
           var cyy = -FQ * 1.3 * Math.sin(FQ * 1.3 * pz - ft * 0.67) - FQ * Math.cos(FQ * px - ft * 1.17);
           var cz = -FQ * 1.3 * Math.sin(FQ * 1.3 * px + ft * 0.5) - FQ * Math.cos(FQ * py + ft);
           var fl = FLOW * h * 0.25;
-          ax += cx * fl; ay += cyy * fl + h * 0.7; az += cz * fl + h * 0.3;
+          ax += cx * fl; ay += cyy * fl + h * 1.0; az += cz * fl + h * 0.4;
         }
         var ph = sd * 6.283;
         ax += Math.sin(t * 1.9 + ph) * 0.06; ay += Math.cos(t * 1.5 + ph * 1.3) * 0.06; az += Math.sin(t * 1.7 + ph * 0.7) * 0.06;
