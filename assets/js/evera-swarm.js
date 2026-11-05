@@ -24,8 +24,12 @@
  *   swarm.attachAudio(audioEl);   // Everas röst som <audio>-element (t.ex. TTS-fil)
  *   swarm.speak('Hej!', 'sv-SE'); // Everas röst via webbläsarens talsyntes
  *   swarm.setLevel('user'|'evera', 0..1); // egen nivå, t.ex. från en röst-API
+ *   swarm.pause(); swarm.resume();        // stoppa/starta animationen (sparar batteri)
+ *   swarm.setZoom(1.4);                   // ändra storlek medan den kör
  *
  * Inställningar: EveraSwarm.mount(canvas, {
+ *   shape: 'logo',    // 'logo' = Everas E, 'gear' = kugghjul (kuggarna rör sig som E:ets staplar)
+ *   zoom: 1,          // >1 = större i bilden
  *   rotate: 'spin',   // 'spin' = snurrar runt sin axel, 'swing' = pendlar fram och tillbaka
  *   spin: 0.8,        // radianer/sekund vid 'spin' (0 = stilla)
  *   swing: 62,        // grader åt varje håll vid 'swing'
@@ -93,6 +97,8 @@
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var MOTION = reduce ? 0.35 : 1;
 
+    var SHAPE = opts.shape === 'gear' ? 'gear' : 'logo';  // 'logo' = Everas E, 'gear' = kugghjul
+    var ZOOM = opts.zoom || 1;                              // >1 = större i bilden
     var colBase = hex(opts.color || '#efe9e2');
     var colUser = hex(opts.userColor || '#9fd8ff');
     var colEvera = hex(opts.everaColor || '#e08a55');
@@ -105,12 +111,29 @@
     var SWING = 1.3;
     var BAND_OF_BAR = [3, 1, 0, 2, 4];              // mittstapeln får grundtonen
 
+    // ---- kugghjulets mått (världsenheter) ----
+    var GT = 8, RI = 0.36, RO = 0.70, GD = 0.13, TR = 0.13;  // kuggar, inner-/ytterradie, halvt djup, kuggens radie
+    var TL_REST = 0.24, TL_CALM = 0.16;                     // kuggens längd i vila / i lugn våg
+    var GEAR_BAND = [0, 1, 2, 3, 4, 3, 2, 1];               // frekvensband per kugge, symmetriskt runt ringen
+    var NB = SHAPE === 'gear' ? GT : 5;                     // antal rörliga staplar/kuggar
+    var ringA = null, ringR = null, ringZ = null, isRing = null;
+
     // ---- partiklar: var och en hör till en stapel och en plats i den ----
     var pos = new Float32Array(N * 3), vel = new Float32Array(N * 3), off = new Float32Array(N * 3);
     var speed = new Float32Array(N), size = new Float32Array(N), seed = new Float32Array(N);
     var barOf = new Uint8Array(N), along = new Float32Array(N);
+    if (SHAPE === 'gear') { ringA = new Float32Array(N); ringR = new Float32Array(N); ringZ = new Float32Array(N); isRing = new Uint8Array(N); }
     for (var i = 0; i < N; i++) {
-      barOf[i] = i % 5;
+      barOf[i] = i % NB;
+      if (SHAPE === 'gear' && Math.random() < 0.52) {
+        // ringen: fram- och baksida, ytter- och innervägg
+        isRing[i] = 1;
+        var face = Math.random(), jit = (Math.random() - 0.5) * 0.03;
+        ringA[i] = Math.random() * 6.2832;
+        if (face < 0.565) { ringR[i] = Math.sqrt(RI * RI + Math.random() * (RO * RO - RI * RI)); ringZ[i] = (face < 0.2825 ? GD : -GD) + jit; }
+        else if (face < 0.85) { ringR[i] = RO + jit; ringZ[i] = (Math.random() * 2 - 1) * GD; }
+        else { ringR[i] = RI + jit; ringZ[i] = (Math.random() * 2 - 1) * GD; }
+      }
       along[i] = Math.random();
       // punkt i ett klot (mest nära ytan) – stapeln blir en rundad kapsel
       var u = Math.random() * 2 - 1, th = Math.random() * 6.2832, rr = Math.sqrt(1 - u * u);
@@ -144,7 +167,7 @@
 
     var U = {};
     ['uScale', 'uCam', 'uAspect', 'uF', 'uSize', 'uBase', 'uTint', 'uTintAmt', 'uFog', 'uFogNear', 'uFogFar'].forEach(function (n) { U[n] = gl.getUniformLocation(prog, n); });
-    var CAM = 7.2, F = 1 / Math.tan(17.5 * Math.PI / 180);
+    var CAM = 7.2 / ZOOM, F = 1 / Math.tan(17.5 * Math.PI / 180);
     gl.uniform1f(U.uCam, CAM); gl.uniform1f(U.uF, F);
     gl.uniform1f(U.uSize, opts.dotSize || 0.027);
     gl.uniform3fv(U.uBase, colBase); gl.uniform3fv(U.uFog, colFog);
@@ -252,6 +275,7 @@
     function setLevel(who, v) { if (src[who]) src[who].manual = Math.max(0, Math.min(1, v)); }
 
     // ---- simulering ----
+    var userPaused = false;
     var t = 0, last = performance.now(), running = true, tint = [0, 0, 0], tintAmt = 0;
     var heat = new Float32Array(N);
     var agents = {
@@ -262,8 +286,8 @@
 
     // staplarnas tillstånd, som i evera-logo.js
     var bars = [];
-    for (var bi = 0; bi < 5; bi++) bars.push({ mix: 0, vel: 0, to: 0, delay: 0, lvl: 0, x0: 0, len: 0, yc: 0 });
-    var state = 'e', quiet = 0, amp = 0, ampVel = 0, tw = 0;
+    for (var bi = 0; bi < NB; bi++) bars.push({ mix: 0, vel: 0, to: 0, delay: 0, lvl: 0, x0: 0, len: 0, yc: 0 });
+    var state = 'e', quiet = 0, amp = 0, ampVel = 0, tw = 0, gearSpin = 0;
     // vila: samma växling som loggan på startsidan (E 0,9 s, våg 2,8 s), fast lugnare
     var IDLE_HOLD_E = 0.9, IDLE_HOLD_WAVE = 2.8, IDLE_AMP = opts.idleAmp != null ? opts.idleAmp : 0.5;
     var idle = true, untilSwitch = 1.5;
@@ -279,7 +303,8 @@
       bars.forEach(function (b, i) {
         b.to = to === 'wave' ? 1 : 0;
         // in i vågen leder översta stapeln, tillbaka till E leder den nedersta
-        b.delay = reduce ? 0 : (to === 'wave' ? i * 0.06 : (4 - i) * 0.06);
+        if (SHAPE === 'gear') b.delay = reduce ? 0 : i * 0.05;  // vågen går runt ringen
+        else b.delay = reduce ? 0 : (to === 'wave' ? i * 0.06 : (4 - i) * 0.06);
       });
     }
     // kritiskt dämpad fjäder: mjuk fart, ingen översvängning
@@ -357,22 +382,33 @@
       real = bands(src.evera, band) || real;
       tw += dt * (idle ? 1.25 : 0.6 + 1.6 * level);  // vila: loggans tempo, röst: tempot följer rösten
 
-      for (var b = 0; b < 5; b++) {
+      var gearRot = 0;
+      if (SHAPE === 'gear') { gearSpin += dt * (0.25 + 0.7 * level); gearRot = gearSpin; }
+      for (var b = 0; b < NB; b++) {
         var B = bars[b];
         if (B.delay > 0) B.delay -= dt;
         else { var r2 = spring(B.mix, B.vel, B.to, B.to ? 5.5 : 6.5, dt); B.mix = r2[0]; B.vel = r2[1]; }
         // stapelns ljudnivå: riktiga frekvensband om de finns, annars loggans vågmönster gånger rösten
-        var pat = 0.8 * (0.5 + 0.5 * Math.sin(tw * 3.6 - b * 0.95)) + 0.2 * (0.5 + 0.5 * Math.sin(tw * 7.2 - b * 1.9));
+        var phA = SHAPE === 'gear' ? b * 6.2832 / GT : b * 0.95, phB = SHAPE === 'gear' ? b * 12.566 / GT : b * 1.9;
+        var pat = 0.8 * (0.5 + 0.5 * Math.sin(tw * 3.6 - phA)) + 0.2 * (0.5 + 0.5 * Math.sin(tw * 7.2 - phB));
         var target;
         if (idle) target = pat;  // vila: loggans lugna ljudstapelmönster
         else {
-          target = real ? Math.max(band[BAND_OF_BAR[b]] * MOTION, pat * level * 0.5) : pat * Math.min(1, level * 1.4);
+          var bandIx = SHAPE === 'gear' ? GEAR_BAND[b] : BAND_OF_BAR[b];
+          target = real ? Math.max(band[bandIx] * MOTION, pat * level * 0.5) : pat * Math.min(1, level * 1.4);
           target = Math.sqrt(Math.min(1, target));  // når längre ut även vid lugnt tal
           if (state === 'wave') target = Math.max(target, 0.4);  // vågen vilar i mellanläge i korta pauser
         }
         B.lvl += (target - B.lvl) * (1 - Math.exp(-dt * (target > B.lvl ? 22 : 7)));
 
         var m = Math.min(1, Math.max(0, B.mix));
+        if (SHAPE === 'gear') {
+          // kuggen: vanlig längd i vila, i vågen följer den mönstret/rösten
+          var gw = TL_CALM + ((0.04 + 0.62 * B.lvl) - TL_CALM) * Math.max(0, amp);
+          B.len = Math.max(0, TL_REST + (gw - TL_REST) * m);
+          B.x0 = b * 6.2832 / GT + gearRot;  // kuggens vinkel
+          continue;
+        }
         var eLen = E_SHAPE[b] + (b === 2 ? 0.035 * Math.sin(t * 1.6) : 0);  // mittarmen andas
         var shape = WAVE_SHAPE[b], calm = 0.5 * shape;
         var wLen = calm + ((0.14 + 0.86 * B.lvl) * shape - calm) * SWING * Math.max(0, amp);
@@ -390,13 +426,25 @@
       var cy0 = Math.cos(yaw), sy0 = Math.sin(yaw), cp = Math.cos(pitch), sp0 = Math.sin(pitch);
       var K = 14, damp = Math.exp(-dt * 3.2), cool = Math.exp(-dt * 1.9);
       var FQ = 1.8, FLOW = 8, ft = t * 1.2, HR = T / 2;
+      var gScale = 1 + 0.015 * Math.sin(t * 1.6) + 0.04 * le;  // ringen andas lätt, lite mer när Evera talar
 
       for (var i = 0, j = 0; i < N; i++, j += 3) {
-        var sd = seed[i], Bp = bars[barOf[i]];
-        // målpunkt i stapelns kapsel (SVG-enheter -> värld)
-        var sx = Bp.x0 + HR + along[i] * (Bp.len - T) + off[j] * HR;
-        var sy = Bp.yc + off[j + 1] * HR;
-        var lx = (sx - W / 2) * S, ly = (H / 2 - sy) * S, lz = off[j + 2] * HR * S;
+        var sd = seed[i], Bp = bars[barOf[i]], lx, ly, lz;
+        if (SHAPE === 'gear') {
+          if (isRing[i]) {
+            var ra = ringA[i] + gearRot, rr0 = ringR[i] * gScale;
+            lx = Math.cos(ra) * rr0; ly = Math.sin(ra) * rr0; lz = ringZ[i];
+          } else {
+            // kuggen: kapsel från ringens kant och utåt
+            var ta = Bp.x0, tr = (RO - 0.06) * gScale + along[i] * Bp.len;
+            lx = Math.cos(ta) * tr + off[j] * TR; ly = Math.sin(ta) * tr + off[j + 1] * TR; lz = off[j + 2] * TR;
+          }
+        } else {
+          // målpunkt i stapelns kapsel (SVG-enheter -> värld)
+          var sx = Bp.x0 + HR + along[i] * (Bp.len - T) + off[j] * HR;
+          var sy = Bp.yc + off[j + 1] * HR;
+          lx = (sx - W / 2) * S; ly = (H / 2 - sy) * S; lz = off[j + 2] * HR * S;
+        }
         // vridning
         var rx = lx * cy0 + lz * sy0, rz = -lx * sy0 + lz * cy0;
         var ty = ly * cp - rz * sp0, tz = ly * sp0 + rz * cp, tx = rx;
@@ -458,11 +506,18 @@
 
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) running = false;
-      else if (!running) { running = true; last = performance.now(); requestAnimationFrame(step); }
+      else if (!running && !userPaused) { running = true; last = performance.now(); requestAnimationFrame(step); }
     });
 
     return {
       listenMic: listenMic, stopMic: stopMic, attachAudio: attachAudio, speak: speak, setLevel: setLevel,
+      setZoom: function (z) {
+        CAM = 7.2 / (z || 1);
+        gl.useProgram(prog); gl.uniform1f(U.uCam, CAM);
+        gl.uniform1f(U.uFogNear, CAM - 1.2); gl.uniform1f(U.uFogFar, CAM + 2.5);
+      },
+      pause: function () { userPaused = true; running = false; },
+      resume: function () { userPaused = false; if (!running && !document.hidden) { running = true; last = performance.now(); requestAnimationFrame(step); } },
       get levels() { return { user: src.user.level, evera: src.evera.level }; }
     };
   }
