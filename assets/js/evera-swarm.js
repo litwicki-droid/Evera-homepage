@@ -36,7 +36,7 @@
  *   loopHold: 10,     // sekunder som formen visas mellan varje utspridning
  *   gather: 0.9,      // sekunder för ihopsamlingen
  *   scatter: 0.75,    // sekunder för utspridningen
- *   pause: 0.15,      // sekunder som kulorna ligger utspridda innan de samlas igen
+ *   pause: 0.05,      // sekunder som kulorna ligger utspridda innan de samlas igen
  *   spread: 0.8,      // hur stort det utspridda molnet är i förhållande till ritytan
  *   rotate: 'spin',   // 'spin' = snurrar runt sin axel, 'swing' = pendlar fram och tillbaka
  *   spin: 0.8,        // radianer/sekund vid 'spin' (0 = stilla)
@@ -290,7 +290,7 @@
     // ---- start/slinga: utspridd -> samlas -> visas -> sprids ut -> ... ----
     var LOOP = !!opts.loop, HOLD = opts.loopHold != null ? opts.loopHold : 10;
     var SPREAD = opts.spread || 0.8;                 // molnets storlek i förhållande till ritytan
-    var GATHER = opts.gather || 0.9, SCATTER = opts.scatter || 0.75, OUT = opts.pause != null ? opts.pause : 0.15;  // sekunder
+    var GATHER = opts.gather || 0.9, SCATTER = opts.scatter || 0.75, OUT = opts.pause != null ? opts.pause : 0.05;  // sekunder
     var loopPhase = 'gather', loopT = 0, spread = 1, firstFrame = true;
     function ease(x) { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }
     var t = 0, last = performance.now(), running = true, tint = [0, 0, 0], tintAmt = 0;
