@@ -5,6 +5,7 @@
  * Rörelsen är samma som den levande loggan på startsidan (evera-logo.js),
  * men styrs av röst i stället för en klocka:
  *
+ *  - Hela tiden: loggan snurrar långsamt runt sin lodräta axel.
  *  - Tyst: staplarna står som ett E. Mittarmen andas lätt.
  *  - Någon pratar: staplarna glider ut till en ljudvåg och följer rösten
  *    som en equalizer (fem frekvensband, mittstapeln = grundtonen).
@@ -22,6 +23,8 @@
  *   swarm.attachAudio(audioEl);   // Everas röst som <audio>-element (t.ex. TTS-fil)
  *   swarm.speak('Hej!', 'sv-SE'); // Everas röst via webbläsarens talsyntes
  *   swarm.setLevel('user'|'evera', 0..1); // egen nivå, t.ex. från en röst-API
+ *
+ * Inställningar: EveraSwarm.mount(canvas, { spin: 0.5 })  // snurrhastighet, 0 = stilla
  */
 (function () {
   'use strict';
@@ -256,6 +259,8 @@
     for (var bi = 0; bi < 5; bi++) bars.push({ mix: 0, vel: 0, to: 0, delay: 0, lvl: 0, x0: 0, len: 0, yc: 0 });
     var state = 'e', quiet = 0, amp = 0, ampVel = 0, tw = 0;
     var band = [0, 0, 0, 0, 0];
+    var SPIN = (opts.spin != null ? opts.spin : 0.5) * (reduce ? 0.3 : 1);  // radianer/sekund (0.5 ≈ ett varv på 12 s)
+    var yaw = 0;
 
     function go(to) {
       state = to;
@@ -346,8 +351,9 @@
         B.x0 = x; B.len = len; B.yc = b * (T + G) + T / 2;
       }
 
-      // loggan vänder sig lätt i rummet så att den känns tredimensionell
-      var yaw = Math.sin(t * 0.35) * 0.26, pitch = Math.sin(t * 0.27) * 0.07;
+      // loggan snurrar hela tiden runt sin lodräta axel, med en lätt gungning framåt/bakåt
+      yaw += dt * SPIN;
+      var pitch = Math.sin(t * 0.27) * 0.07;
       var cy0 = Math.cos(yaw), sy0 = Math.sin(yaw), cp = Math.cos(pitch), sp0 = Math.sin(pitch);
       var K = 9, damp = Math.exp(-dt * 2.0), cool = Math.exp(-dt * 1.0);
       var FQ = 1.8, FLOW = 4.5, ft = t * 0.5, HR = T / 2;
