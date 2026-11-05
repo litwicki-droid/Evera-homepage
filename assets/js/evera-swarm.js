@@ -35,6 +35,7 @@
  *   loopHold: 10,     // sekunder som formen visas mellan varje utspridning
  *   gather: 0.9,      // sekunder för ihopsamlingen
  *   scatter: 0.75,    // sekunder för utspridningen
+ *   spread: 0.8,      // hur stort det utspridda molnet är i förhållande till ritytan
  *   rotate: 'spin',   // 'spin' = snurrar runt sin axel, 'swing' = pendlar fram och tillbaka
  *   spin: 0.8,        // radianer/sekund vid 'spin' (0 = stilla)
  *   swing: 62,        // grader åt varje håll vid 'swing'
@@ -144,8 +145,9 @@
       var u = Math.random() * 2 - 1, th = Math.random() * 6.2832, rr = Math.sqrt(1 - u * u);
       var rad = 0.78 + 0.22 * Math.sqrt(Math.random());
       off[i * 3] = Math.cos(th) * rr * rad; off[i * 3 + 1] = Math.sin(th) * rr * rad; off[i * 3 + 2] = u * rad;
-      // utspridd plats i hela rutan (-1..1, skalas mot synfältet varje bild)
-      scat[i * 3] = Math.random() * 2 - 1; scat[i * 3 + 1] = Math.random() * 2 - 1; scat[i * 3 + 2] = Math.random() * 2 - 1;
+      // utspridd plats: ett runt moln som glesnar mot kanten (inga raka kanter att klippa)
+      var su = Math.random() * 2 - 1, sth = Math.random() * 6.2832, srr = Math.sqrt(1 - su * su), sf = Math.pow(Math.random(), 0.7) * (0.8 + 0.35 * Math.random());
+      scat[i * 3] = Math.cos(sth) * srr * sf; scat[i * 3 + 1] = Math.sin(sth) * srr * sf; scat[i * 3 + 2] = su * sf;
       seed[i] = Math.random();
       size[i] = 0.75 + Math.random() * 0.5;
     }
@@ -283,6 +285,7 @@
     var userPaused = false;
     // ---- start/slinga: utspridd -> samlas -> visas -> sprids ut -> ... ----
     var LOOP = !!opts.loop, HOLD = opts.loopHold != null ? opts.loopHold : 10;
+    var SPREAD = opts.spread || 0.8;                 // molnets storlek i förhållande till ritytan
     var GATHER = opts.gather || 0.9, SCATTER = opts.scatter || 0.75, OUT = 0.5;  // sekunder
     var loopPhase = 'gather', loopT = 0, spread = 1, firstFrame = true;
     function ease(x) { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }
@@ -371,7 +374,7 @@
       // synfältets halva höjd/bredd vid z = 0, för utspridda platser
       // styvare fjädrar medan kulorna sprids eller samlas, så att de hinner med
       var kMove = (loopPhase === 'gather' || loopPhase === 'scatter') ? 2.6 : 1;
-      var hh = CAM / F * 0.92, hw = hh * canvas.width / Math.max(1, canvas.height), sDepth = 1.6;
+      var hh = CAM / F * SPREAD, hw = hh * canvas.width / Math.max(1, canvas.height), sDepth = 1.6;
       if (firstFrame) {
         firstFrame = false;
         for (var q0 = 0; q0 < N; q0++) { pos[q0 * 3] = scat[q0 * 3] * hw; pos[q0 * 3 + 1] = scat[q0 * 3 + 1] * hh; pos[q0 * 3 + 2] = scat[q0 * 3 + 2] * sDepth; }

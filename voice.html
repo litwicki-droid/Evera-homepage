@@ -26,14 +26,16 @@
     .chooser { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(20px, 4vh, 40px);
       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); box-sizing: border-box; }
     .chooser__hint { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .02em; text-align: center; }
+    .option__name { position: relative; z-index: 1; }
     .options { display: flex; gap: clamp(16px, 5vw, 64px); justify-content: center; width: 100%; }
     .option { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 14px;
       width: min(40vw, 380px); min-width: 0; border-radius: 28px; padding: 12px 12px 20px; transition: background .25s, transform .25s; }
     .option:hover { background: rgba(246, 243, 239, .05); }
     .option:focus-visible { outline: 2px solid var(--cream); outline-offset: 4px; }
     .option:active { transform: scale(.985); }
-    .option__view { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; }
-    .option__view canvas { width: 100%; height: 100%; display: block; }
+    .option__view { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; position: relative; }
+    /* ritytan är mycket större än kortet och genomskinlig, så utspridda kulor aldrig klipps av */
+    .option__view canvas { position: absolute; left: -60%; top: -60%; width: 220%; height: 220%; display: block; pointer-events: none; }
     .option__name { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
     .option__brand { font: 700 clamp(20px, 3vw, 28px)/1 var(--font-logo); letter-spacing: .01em; }
     .option__sub { font-size: clamp(11px, 1.4vw, 13px); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
@@ -41,7 +43,7 @@
     /* ---- mikrofonläge ---- */
     .stage { position: fixed; inset: 0; }
     .stage__view { position: absolute; inset: 0; }
-    .stage__view canvas { width: 100%; height: 100%; display: block; }
+    .stage__view canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
     .stage__top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
       padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
     .stage__title { margin: 0; font: 700 clamp(18px, 2.4vw, 24px)/1.2 var(--font-logo); text-align: center; flex: 1; min-width: 0; }
@@ -105,7 +107,7 @@
   <script>
   (function () {
     'use strict';
-    var TILE_ZOOM = 1.55, STAGE_ZOOM = 1.15;
+    var TILE_ZOOM = 1.55 / 2.2, STAGE_ZOOM = 1.15;  // ritytan på valet är 2,2 gånger kortet
     var MODES = {
       presence: { title: 'Your Presence', shape: 'logo', canvas: 'c-presence', view: 'view-presence',
         lines: ['Hej, jag är Evera. Jag finns här med dig, varje dag.', 'Jag lyssnar, jag minns, och jag märker när något förändras.'] },
@@ -114,7 +116,7 @@
     };
     Object.keys(MODES).forEach(function (k) {
       var m = MODES[k];
-      m.swarm = EveraSwarm.mount(document.getElementById(m.canvas), { shape: m.shape, zoom: TILE_ZOOM, loop: true, loopHold: 10, count: window.innerWidth < 700 ? 5000 : 10000 });
+      m.swarm = EveraSwarm.mount(document.getElementById(m.canvas), { shape: m.shape, zoom: TILE_ZOOM, loop: true, loopHold: 10, spread: 0.55, count: window.innerWidth < 700 ? 5000 : 10000 });
     });
     if (!MODES.presence.swarm) { document.querySelector('.chooser__hint').textContent = 'Din webbläsare stöder inte WebGL2.'; return; }
     window.__modes = MODES; // för test
