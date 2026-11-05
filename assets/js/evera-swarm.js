@@ -377,6 +377,8 @@
       // synfältets halva höjd/bredd vid z = 0, för utspridda platser
       // styvare fjädrar medan kulorna sprids eller samlas, så att de hinner med
       var kMove = (loopPhase === 'gather' || loopPhase === 'scatter') ? 2.6 : 1;
+      // under utspridning/ihopsamling är alla kulor lika styva så att båda formerna når lika långt ut
+      var stiff = SHAPE === 'gear' || loopPhase !== 'hold';
       var hh = CAM / F * SPREAD, hw = hh * canvas.width / Math.max(1, canvas.height), sDepth = 1.6;
       if (firstFrame) {
         firstFrame = false;
@@ -516,7 +518,7 @@
 
         // E:et: olika styvhet per kula, några släpar efter i svängarna och det ger flöde.
         // Kugghjulet: lika styva kulor så att kuggarna rör sig rakt in och ut.
-        var k = (SHAPE === 'gear' ? GEAR_K : K * (0.35 + 0.9 * sd)) * (1 - 0.93 * h) * kMove;
+        var k = (stiff ? GEAR_K : K * (0.35 + 0.9 * sd)) * (1 - 0.93 * h) * kMove;
         var ax = (tx - px) * k, ay = (ty - py) * k, az = (tz - pz) * k;
         if (h > 0.02) {
           // virvelfält utan källor (curl av ett sinusfält) ger rökliknande slingor
@@ -526,7 +528,7 @@
           var fl = FLOW * h * 0.25;
           ax += cx * fl; ay += cyy * fl + h * 1.0; az += cz * fl + h * 0.4;
         }
-        if (SHAPE === 'gear') {
+        if (stiff) {
           // följer med i rotationen och dämpas kritiskt: ingen eftersläpning, ingen gungning
           var cG = 2 * Math.sqrt(k);
           ax += cG * (-ty * omega - vx); ay += cG * (tx * omega - vy); az += cG * (-vz);
@@ -567,7 +569,8 @@
       setLoop: function (on) { LOOP = !!on; if (!LOOP && loopPhase !== 'gather') { loopPhase = 'hold'; loopT = 0; } },
       pause: function () { userPaused = true; running = false; },
       resume: function () { userPaused = false; if (!running && !document.hidden) { running = true; last = performance.now(); requestAnimationFrame(step); } },
-      get levels() { return { user: src.user.level, evera: src.evera.level }; }
+      get levels() { return { user: src.user.level, evera: src.evera.level }; },
+      get phase() { return loopPhase; }
     };
   }
 
