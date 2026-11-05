@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Evera – röstsvärm (demo)</title>
+  <meta name="robots" content="noindex">
+  <link rel="preload" href="assets/fonts/inter-500.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face { font-family: "Inter"; src: url(assets/fonts/inter-500.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+    :root { --navy: #141a2b; --cream: #f6f3ef; --terra: #c7703d; }
+    html, body { margin: 0; height: 100%; background: var(--navy); color: var(--cream); font: 500 15px/1.4 "Inter", system-ui, sans-serif; }
+    body { background: radial-gradient(ellipse at 50% 42%, #232c45 0%, var(--navy) 62%); overflow: hidden; }
+    #swarm { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+    .controls { position: fixed; left: 50%; bottom: max(28px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+      display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: calc(100% - 32px); }
+    button { font: inherit; color: var(--cream); background: rgba(246,243,239,.08); border: 1px solid rgba(246,243,239,.22);
+      border-radius: 999px; padding: 11px 20px; cursor: pointer; backdrop-filter: blur(8px); transition: background .2s, border-color .2s; }
+    button:hover { background: rgba(246,243,239,.14); }
+    button[aria-pressed="true"] { border-color: #9fd8ff; background: rgba(159,216,255,.16); }
+    #speak.on { border-color: var(--terra); background: rgba(199,112,61,.2); }
+    .status { position: fixed; top: 22px; left: 0; right: 0; text-align: center; opacity: .6; font-size: 13px; letter-spacing: .02em; padding: 0 16px; }
+  </style>
+</head>
+<body>
+  <canvas id="swarm" aria-label="Everas logga av små kulor som blir en ljudvåg när någon pratar" role="img"></canvas>
+  <p class="status" id="status">Prata, eller låt Evera prata</p>
+  <div class="controls">
+    <button id="mic" type="button" aria-pressed="false">🎙 Prata med Evera</button>
+    <button id="speak" type="button">Låt Evera prata</button>
+  </div>
+
+  <script src="assets/js/evera-swarm.js"></script>
+  <script>
+    (function () {
+      var swarm = EveraSwarm.mount(document.getElementById('swarm'));
+      var status = document.getElementById('status');
+      if (!swarm) { status.textContent = 'Din webbläsare stöder inte WebGL2.'; return; }
+      window.__swarm = swarm; // för test
+
+      var mic = document.getElementById('mic');
+      mic.addEventListener('click', function () {
+        if (mic.getAttribute('aria-pressed') === 'true') {
+          swarm.stopMic(); mic.setAttribute('aria-pressed', 'false'); status.textContent = 'Mikrofonen är av';
+          return;
+        }
+        swarm.listenMic().then(function () {
+          mic.setAttribute('aria-pressed', 'true'); status.textContent = 'Jag lyssnar…';
+        }).catch(function () { status.textContent = 'Kunde inte starta mikrofonen'; });
+      });
+
+      var lines = [
+        'Hej, jag är Evera. Jag finns här med dig, varje dag.',
+        'Jag lyssnar, jag minns, och jag märker när något förändras.',
+        'Varje samtal räknas.'
+      ], n = 0, speakBtn = document.getElementById('speak');
+      speakBtn.addEventListener('click', function () {
+        var text = lines[n++ % lines.length];
+        status.textContent = '“' + text + '”';
+        speakBtn.classList.add('on');
+        swarm.speak(text, 'sv-SE');
+        setTimeout(function () { speakBtn.classList.remove('on'); }, Math.max(2, text.split(' ').length * 0.38) * 1000);
+      });
+    })();
+  </script>
+</body>
+</html>

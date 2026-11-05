@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Evera – välj röstläge</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#141a2b">
+  <style>
+    @font-face { font-family: "Quicksand"; src: url(assets/fonts/quicksand-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+    @font-face { font-family: "Inter"; src: url(assets/fonts/inter-500.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+    /* Två klickbara val bredvid varandra; valt läge öppnas i helskärm med mikrofonen igång. */
+    :root {
+      --navy: #141a2b; --navy-hi: #232c45; --cream: #f6f3ef; --terra: #c7703d; --cool: #9fd8ff;
+      --muted: rgba(246, 243, 239, .62); --line: rgba(246, 243, 239, .2);
+      --font-logo: "Quicksand", "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
+      --font-body: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+      color-scheme: dark;
+    }
+    [hidden] { display: none !important; }
+    html, body { height: 100%; }
+    body { margin: 0; overflow: hidden; color: var(--cream); font: 500 15px/1.4 var(--font-body);
+      background: radial-gradient(ellipse at 50% 45%, var(--navy-hi) 0%, var(--navy) 65%) var(--navy); }
+
+    /* ---- val ---- */
+    .chooser { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(20px, 4vh, 40px);
+      padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); box-sizing: border-box; }
+    .chooser__hint { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .02em; text-align: center; }
+    .option__name { position: relative; z-index: 1; }
+    .options { display: flex; gap: clamp(16px, 5vw, 64px); justify-content: center; width: 100%; }
+    .option { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 14px;
+      width: min(40vw, 380px); min-width: 0; border-radius: 28px; padding: 12px 12px 20px; transition: background .25s, transform .25s; }
+    .option:hover { background: rgba(246, 243, 239, .05); }
+    .option:focus-visible { outline: 2px solid var(--cream); outline-offset: 4px; }
+    .option:active { transform: scale(.985); }
+    .option__view { width: 100%; aspect-ratio: 1; max-width: 100%; display: block; position: relative; }
+    /* ritytan är mycket större än kortet och genomskinlig, så utspridda kulor aldrig klipps av */
+    .option__view canvas { position: absolute; left: -60%; top: -60%; width: 220%; height: 220%; display: block; pointer-events: none; }
+    .option__name { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+    .option__brand { font: 700 clamp(20px, 3vw, 28px)/1 var(--font-logo); letter-spacing: .01em; }
+    .option__sub { font-size: clamp(11px, 1.4vw, 13px); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+
+    /* ---- mikrofonläge ---- */
+    .stage { position: fixed; inset: 0; }
+    .stage__view { position: absolute; inset: 0; }
+    .stage__view canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+    .stage__top { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
+    .stage__title { margin: 0; font: 700 clamp(18px, 2.4vw, 24px)/1.2 var(--font-logo); text-align: center; flex: 1; min-width: 0; }
+    .stage__title span { font: 500 .62em var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); display: block; margin-top: 4px; }
+    .stage__spacer { width: 120px; flex: none; }
+    .stage__bottom { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 14px;
+      padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+    .status { margin: 0; color: var(--muted); font-size: 14px; text-align: center; min-height: 1.4em; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .btn { font: inherit; color: var(--cream); background: rgba(246, 243, 239, .08); border: 1px solid var(--line); border-radius: 999px;
+      padding: 11px 20px; cursor: pointer; backdrop-filter: blur(8px); -webkit-user-select: none; user-select: none; touch-action: none;
+      transition: background .2s, border-color .2s; }
+    .btn:hover { background: rgba(246, 243, 239, .14); }
+    .btn:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
+    .btn--back { width: 120px; flex: none; padding: 9px 14px; white-space: nowrap; }
+    .btn.is-on { border-color: var(--cool); background: rgba(159, 216, 255, .16); }
+    .btn.is-evera { border-color: var(--terra); background: rgba(199, 112, 61, .22); }
+
+    @media (max-width: 420px) {
+      .option { padding: 6px 4px 14px; gap: 8px; }
+      .option__sub { letter-spacing: .1em; }
+      .stage__spacer, .btn--back { width: 92px; }
+      .btn--back { font-size: 13px; padding: 8px 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .option, .btn { transition: none; } }
+  </style>
+</head>
+<body>
+  <main class="chooser" id="chooser">
+    <p class="chooser__hint">Välj hur du vill prata med Evera</p>
+    <div class="options">
+      <button class="option" type="button" data-mode="presence" aria-label="Evera – Your Presence. Öppnar mikrofonläget.">
+        <span class="option__view" id="view-presence"><canvas id="c-presence" aria-hidden="true"></canvas></span>
+        <span class="option__name"><span class="option__brand">Evera</span><span class="option__sub">Your Presence</span></span>
+      </button>
+      <button class="option" type="button" data-mode="family" aria-label="Evera – For Family. Öppnar mikrofonläget.">
+        <span class="option__view" id="view-family"><canvas id="c-family" aria-hidden="true"></canvas></span>
+        <span class="option__name"><span class="option__brand">Evera</span><span class="option__sub">For Family</span></span>
+      </button>
+    </div>
+  </main>
+
+  <section class="stage" id="stage" hidden aria-live="polite">
+    <div class="stage__view" id="stage-view"></div>
+    <div class="stage__top">
+      <button class="btn btn--back" id="back" type="button">← Tillbaka</button>
+      <h1 class="stage__title" id="stage-title">Evera<span>Your Presence</span></h1>
+      <span class="stage__spacer" aria-hidden="true"></span>
+    </div>
+    <div class="stage__bottom">
+      <p class="status" id="status"></p>
+      <div class="row">
+        <button class="btn" id="mic" type="button" aria-pressed="false">🎙 Mikrofon</button>
+        <button class="btn" id="hold" type="button" hidden>Håll in för att prata</button>
+        <button class="btn" id="speak" type="button">Låt Evera prata</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="assets/js/evera-swarm.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var TILE_ZOOM = 1.55 / 2.2, STAGE_ZOOM = 1.15;  // ritytan på valet är 2,2 gånger kortet
+    var MODES = {
+      presence: { title: 'Your Presence', shape: 'logo', canvas: 'c-presence', view: 'view-presence',
+        lines: ['Hej, jag är Evera. Jag finns här med dig, varje dag.', 'Jag lyssnar, jag minns, och jag märker när något förändras.'] },
+      family: { title: 'For Family', shape: 'gear', canvas: 'c-family', view: 'view-family',
+        lines: ['Hej! Här kan du som anhörig följa och ställa in hur Evera hjälper till.', 'Du får veta när något förändras, och kan när som helst justera inställningarna.'] }
+    };
+    Object.keys(MODES).forEach(function (k) {
+      var m = MODES[k];
+      m.swarm = EveraSwarm.mount(document.getElementById(m.canvas), { shape: m.shape, zoom: TILE_ZOOM, loop: true, loopHold: 10, spread: 0.55, count: window.innerWidth < 700 ? 5000 : 10000 });
+    });
+    if (!MODES.presence.swarm) { document.querySelector('.chooser__hint').textContent = 'Din webbläsare stöder inte WebGL2.'; return; }
+    window.__modes = MODES; // för test
+
+    var chooser = document.getElementById('chooser'), stage = document.getElementById('stage'), stageView = document.getElementById('stage-view');
+    var title = document.getElementById('stage-title'), status = document.getElementById('status');
+    var micBtn = document.getElementById('mic'), holdBtn = document.getElementById('hold'), speakBtn = document.getElementById('speak');
+    var active = null, lineIx = 0;
+
+    function setStatus(t) { status.textContent = t; }
+
+    function startMic() {
+      return active.swarm.listenMic().then(function () {
+        micBtn.hidden = false; holdBtn.hidden = true;
+        micBtn.classList.add('is-on'); micBtn.setAttribute('aria-pressed', 'true'); micBtn.textContent = '🎙 Lyssnar';
+        setStatus('Prata, jag lyssnar');
+      }).catch(function () {
+        // ingen mikrofon (nekad, saknas eller blockerad): visa en knapp som simulerar rösten
+        micBtn.hidden = true; holdBtn.hidden = false;
+        setStatus('Mikrofonen är inte tillgänglig här. Håll in knappen för att simulera din röst.');
+      });
+    }
+    function stopMic() {
+      if (!active) return;
+      active.swarm.stopMic();
+      micBtn.classList.remove('is-on'); micBtn.setAttribute('aria-pressed', 'false'); micBtn.textContent = '🎙 Mikrofon';
+    }
+
+    function open(key) {
+      active = MODES[key]; lineIx = 0;
+      Object.keys(MODES).forEach(function (k) { if (k !== key) MODES[k].swarm.pause(); });
+      stageView.appendChild(document.getElementById(active.canvas));
+      active.swarm.setZoom(STAGE_ZOOM);
+      active.swarm.setLoop(false);  // i mikrofonläget står formen kvar
+      title.innerHTML = 'Evera<span>' + active.title + '</span>';
+      chooser.hidden = true; stage.hidden = false;
+      micBtn.hidden = false; holdBtn.hidden = true;
+      setStatus('Startar mikrofonen…');
+      startMic();  // klicket på valet räknas som tillåtelse att fråga om mikrofonen
+      document.getElementById('back').focus();
+    }
+    function close() {
+      if (!active) return;
+      stopMic(); stopHold();
+      document.getElementById(active.view).appendChild(document.getElementById(active.canvas));
+      active.swarm.setZoom(TILE_ZOOM);
+      active.swarm.setLoop(true);
+      Object.keys(MODES).forEach(function (k) { MODES[k].swarm.resume(); });
+      var key = active === MODES.presence ? 'presence' : 'family';
+      active = null;
+      stage.hidden = true; chooser.hidden = false;
+      document.querySelector('[data-mode="' + key + '"]').focus();
+    }
+
+    document.querySelectorAll('.option').forEach(function (b) {
+      b.addEventListener('click', function () { open(b.getAttribute('data-mode')); });
+    });
+    document.getElementById('back').addEventListener('click', close);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && active) close(); });
+
+    micBtn.addEventListener('click', function () {
+      if (micBtn.classList.contains('is-on')) { stopMic(); setStatus('Mikrofonen är av'); }
+      else { setStatus('Startar mikrofonen…'); startMic(); }
+    });
+
+    // simulerad röst när mikrofon saknas
+    var holding = false, t0 = 0;
+    function tick(now) {
+      if (!holding || !active) return;
+      var t = (now - t0) / 1000;
+      active.swarm.setLevel('user', 0.35 + 0.5 * Math.abs(Math.sin(t * 13.5)) * (0.6 + 0.4 * Math.sin(t * 2.3)));
+      requestAnimationFrame(tick);
+    }
+    function startHold(e) { e.preventDefault(); if (holding) return; holding = true; t0 = performance.now(); holdBtn.classList.add('is-on'); setStatus('Du pratar…'); requestAnimationFrame(tick); }
+    function stopHold() { if (!holding) return; holding = false; holdBtn.classList.remove('is-on'); if (active) { active.swarm.setLevel('user', 0); setStatus('Håll in knappen igen för att prata'); } }
+    holdBtn.addEventListener('pointerdown', startHold);
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (n) { holdBtn.addEventListener(n, stopHold); });
+    holdBtn.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') startHold(e); });
+    holdBtn.addEventListener('keyup', stopHold);
+
+    speakBtn.addEventListener('click', function () {
+      if (!active) return;
+      var text = active.lines[lineIx++ % active.lines.length];
+      setStatus('“' + text + '”');
+      speakBtn.classList.add('is-evera');
+      active.swarm.speak(text, 'sv-SE');
+      setTimeout(function () { speakBtn.classList.remove('is-evera'); }, Math.max(2, text.split(' ').length * 0.38) * 1000);
+    });
+  })();
+  </script>
+</body>
+</html>

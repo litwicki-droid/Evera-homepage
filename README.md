@@ -1,6 +1,6 @@
 # Everas hemsida: publicera utan serverkommandon
 
-Hemsidan består av 20 statiska filer. Verktyget använder enbart SFTP, inte SSH-kommandon på servern. Python och OpenSSH-klienten som redan finns på GitHubs Ubuntu-runner räcker. Inga Pythonpaket installeras.
+Hemsidan består av 22 statiska filer. Verktyget använder enbart SFTP, inte SSH-kommandon på servern. Python och OpenSSH-klienten som redan finns på GitHubs Ubuntu-runner räcker. Inga Pythonpaket installeras.
 
 Inget är publicerat genom att lägga dessa filer i repot. Workflowen startar bara när du väljer **Run workflow**. Börja med `check`, fortsätt med `preview` och använd `production` först när rätt fjärrmapp och backup är bekräftade.
 
@@ -42,11 +42,11 @@ Workflowen använder read-only-behörighet för repot och sparar inte checkout-t
 
 **Kontrollera anslutningen:** Gå till **Actions → Evera SFTP → Run workflow**. Välj `main` och `check`. Körningen läser fjärrmappar och kontrollerar att relevanta befintliga filer inte är länkar eller fel filtyp. Den skapar eller ändrar inget på servern. Den testar inte skrivbehörighet eller att rätt domän pekar på mappen; det måste verifieras separat.
 
-**Testa hemsidan:** Välj `preview`. Verktyget skapar en unik `evera-preview-<slumpvärde>` under den verifierade webbroten och laddar upp exakt manifestets 20 filer där. Målsökvägen skrivs i körningens logg. Om webbroten är rätt och mappen är åtkomlig kan du normalt öppna motsvarande adress under `https://evera.care/`. Kontrollera själv sambandet, ingen URL gissas av koden. Preview är inte lösenordsskyddad: den kan vara publikt tillgänglig. Canonical- och delningslänkar pekar fortfarande på liveadressen. Rensa senare gamla preview-mappar manuellt efter kontroll; verktyget raderar dem aldrig.
+**Testa hemsidan:** Välj `preview`. Verktyget skapar en unik `evera-preview-<slumpvärde>` under den verifierade webbroten och laddar upp exakt manifestets 22 filer där. Målsökvägen skrivs i körningens logg. Om webbroten är rätt och mappen är åtkomlig kan du normalt öppna motsvarande adress under `https://evera.care/`. Kontrollera själv sambandet, ingen URL gissas av koden. Preview är inte lösenordsskyddad: den kan vara publikt tillgänglig. Canonical- och delningslänkar pekar fortfarande på liveadressen. Rensa senare gamla preview-mappar manuellt efter kontroll; verktyget raderar dem aldrig.
 
-**Publicera live:** Kontrollera backup, godkänn preview, sätt repo-variabeln `PRODUCTION_ENABLED=true`. Välj `main`, `production` och skriv exakt `PUBLISH evera.care` i bekräftelsefältet. Stäng gärna variabeln igen efteråt. Verktyget ersätter bara de 20 namngivna webbplatsfilerna. Andra filer, inklusive serverinställningar, lämnas kvar. Avsikten ska vara granskad före körningen: den här workflowen lägger inte till ett separat godkännandesteg i GitHub Environments.
+**Publicera live:** Kontrollera backup, godkänn preview, sätt repo-variabeln `PRODUCTION_ENABLED=true`. Välj `main`, `production` och skriv exakt `PUBLISH evera.care` i bekräftelsefältet. Stäng gärna variabeln igen efteråt. Verktyget ersätter bara de 22 namngivna webbplatsfilerna. Andra filer, inklusive serverinställningar, lämnas kvar. Avsikten ska vara granskad före körningen: den här workflowen lägger inte till ett separat godkännandesteg i GitHub Environments.
 
-**Gör en vanlig ändring:** Ändra HTML, CSS eller JavaScript i repot. Kör lokala tester, granska diffen och lägg ändringen på main. Kör sedan preview och slutligen production. Bara de 20 filerna i `deploy/manifest.json` publiceras. Ändras filuppsättningen krävs en medveten ändring av manifestet och granskning av antalskontrollen. `deploy/original-sha256.json` dokumenterar den ursprungliga kopian; den är inte en spärr mot framtida innehållsändringar.
+**Gör en vanlig ändring:** Ändra HTML, CSS eller JavaScript i repot. Kör lokala tester, granska diffen och lägg ändringen på main. Kör sedan preview och slutligen production. Bara de 22 filerna i `deploy/manifest.json` publiceras. Ändras filuppsättningen krävs en medveten ändring av manifestet och granskning av antalskontrollen. `deploy/original-sha256.json` dokumenterar den ursprungliga kopian; den är inte en spärr mot framtida innehållsändringar.
 
 ## Lokala kontroller utan konto
 
@@ -61,7 +61,7 @@ Dry-run kontrollerar den lokala fillistan och gör inga nätverksanrop. Mocktest
 
 ## Vad skydden gör och inte gör
 
-Manifestet tillåter exakt 20 filer. Varken README, deploykoden, privata zip-filer eller GitHub-konfiguration skickas till webbhotellet. Källfiler och deras lokala föräldramappar får inte vara symboliska länkar. Fjärrmapparnas föräldrar och målfilernas typer kontrolleras genom SFTP-listning, även igen under publiceringen. Okänt listformat stoppar körningen hellre än att gissas.
+Manifestet tillåter exakt 22 filer (sedan röstlägena lade till `assets/js/evera-swarm.js` och `assets/js/evera-voice.js`). Varken README, deploykoden, privata zip-filer eller GitHub-konfiguration skickas till webbhotellet. Källfiler och deras lokala föräldramappar får inte vara symboliska länkar. Fjärrmapparnas föräldrar och målfilernas typer kontrolleras genom SFTP-listning, även igen under publiceringen. Okänt listformat stoppar körningen hellre än att gissas.
 
 Varje fil laddas först upp under ett unikt tillfälligt namn i målmappen och får sedan sitt riktiga namn genom SFTP `rename`. `index.html` kommer sist. Det minskar risken för en halvskriven enskild fil, men hela sajten byts inte atomiskt: besökare kan tillfälligt få en blandning av gammalt och nytt. Servern måste stödja namnbyte över en befintlig fil; om den inte gör det avbryts körningen utan att verktyget först raderar originalet. Ingen delete-fallback finns.
 
@@ -75,7 +75,7 @@ SFTP-klienten kan inte låsa serverns filsystem eller göra atomiska lstat-och-r
 
 Detta är en manuell återställning, inte en automatisk rollback. Packa upp din betrodda backup i en privat separat mapp, inte direkt över repot. Kontrollera arkivets sökvägar före uppackning och undvik arkiv med absoluta sökvägar, `..` eller länkar. Kontrollera sedan vilka filer som ligger direkt i den verkliga webbroten; backupen kan ha en extra `www/`-nivå.
 
-För att återställa just manifestets 20 webbplatsfiler kan du kopiera motsvarande ordinarie filer från den privata backupen till repots webbplatsrot, granska diffen och köra lokala tester, preview och production igen. Skapa gärna en särskild restore-commit så att återställningen går att följa. Kopiera inte in zip-filen eller hemligheter. Om backupen har en annan filuppsättning, serverkonfiguration eller fler filer måste återställningen göras manuellt via one.coms filhanterare/SFTP efter separat granskning. Den här publiceringen återställer inte sådana filer och tar inte bort nya extrafiler. Behåll backupen tills du verifierat sidan i webbläsaren.
+För att återställa just manifestets 22 webbplatsfiler kan du kopiera motsvarande ordinarie filer från den privata backupen till repots webbplatsrot, granska diffen och köra lokala tester, preview och production igen. Skapa gärna en särskild restore-commit så att återställningen går att följa. Kopiera inte in zip-filen eller hemligheter. Om backupen har en annan filuppsättning, serverkonfiguration eller fler filer måste återställningen göras manuellt via one.coms filhanterare/SFTP efter separat granskning. Den här publiceringen återställer inte sådana filer och tar inte bort nya extrafiler. Behåll backupen tills du verifierat sidan i webbläsaren.
 
 ## Hitta SFTP-mappen utan att gissa
 

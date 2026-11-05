@@ -11,9 +11,10 @@
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var busy = false, last = 0;
 
-  function fire() {
+  // force = true: vid klick, darra även om muspekaren nyss gav en stöt
+  function fire(force) {
     var now = Date.now();
-    if (busy || now - last < 450) return;      // inte oftare än ungefär två gånger per sekund
+    if (busy || (force !== true && now - last < 450)) return;      // inte oftare än ungefär två gånger per sekund
     last = now;
     if (window.everaSound) window.everaSound.zap();
     if (reduce) return;
@@ -25,5 +26,6 @@
   }
 
   pill.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') fire(); });
-  pill.addEventListener('pointerdown', fire);   // mobil: tryck på rutan
+  pill.addEventListener('pointerdown', function () { fire(); });   // mobil: tryck på rutan
+  window.everaZap = fire;   // används av evera-voice.js vid klick
 })();

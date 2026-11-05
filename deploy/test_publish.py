@@ -35,7 +35,7 @@ class Fake:
 class Tests(unittest.TestCase):
     def test_manifest_and_index_last(self):
         files = p.load_manifest()
-        self.assertEqual(len(files),20)
+        self.assertEqual(len(files),22)
         self.assertEqual(files[-1],'index.html')
         self.assertNotIn('README.md',files)
     def test_unsafe_remote_paths(self):
@@ -64,7 +64,7 @@ class Tests(unittest.TestCase):
         p.publish(fake,'/www',p.load_manifest())
         puts=[c for c in fake.commands if c.startswith('put ')]
         renames=[c for c in fake.commands if c.startswith('rename ')]
-        self.assertEqual(len(puts),20); self.assertEqual(len(renames),20)
+        self.assertEqual(len(puts),22); self.assertEqual(len(renames),22)
         self.assertTrue(renames[-1].endswith('/index.html"'))
         self.assertEqual(fake.tree['/www']['unrelated.txt'],'-')
         self.assertEqual(fake.tree['/www']['other-link'],'l')

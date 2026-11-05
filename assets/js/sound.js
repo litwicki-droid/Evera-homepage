@@ -138,7 +138,7 @@
         pluckAt = Math.max(pluckAt, now + 0.8);
         clearInterval(timer); timer = setInterval(schedule, 250); schedule();
       }
-      master.gain.setTargetAtTime(VOLUME, now, 0.7);      // tona in
+      master.gain.setTargetAtTime(ducked ? 0 : VOLUME, now, 0.7);      // tona in (tyst medan mikrofonläget är öppet)
     } else {
       master.gain.setTargetAtTime(0, now, 0.25);          // tona ut
       clearInterval(timer);
@@ -258,7 +258,19 @@
     if (ZAP_STYLE === 'knaster') zapKnaster(); else zapGnista();
   }
 
-  window.everaSound = { zap: zap, isOn: function () { return on; } };
+  // Tyst musik medan mikrofonläget är öppet (evera-voice.js), så att mikrofonen inte hör den.
+  // Påverkar inte ljudknappen: musiken tonar tillbaka när läget stängs.
+  var ducked = false;
+  function duck(d) {
+    ducked = !!d;
+    if (!ctx || !on) return;
+    var now = ctx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(master.gain.value, now);
+    master.gain.setTargetAtTime(ducked ? 0 : VOLUME, now, ducked ? 0.15 : 0.7);
+  }
+
+  window.everaSound = { zap: zap, duck: duck, isOn: function () { return on; } };
 
   var userChose = false;   // besökaren har själv tryckt på knappen: respektera det
   btn.addEventListener('click', function () { userChose = true; set(!on); });

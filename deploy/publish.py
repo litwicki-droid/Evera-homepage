@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exactly 20 static files, SFTP subsystem only, no remote shell commands."""
+"""Exactly 22 static files, SFTP subsystem only, no remote shell commands."""
 import argparse
 import json
 import os
@@ -29,10 +29,13 @@ def components(path):
         fail('Fjärrsökvägen innehåller otillåtna tecken eller komponenter.')
     return parts
 
+# Medveten spärr: ändras filuppsättningen ska både manifestet och detta antal granskas.
+EXPECTED_FILES = 22
+
 def load_manifest(root=ROOT):
     files = json.loads((root / 'deploy/manifest.json').read_text())['files']
-    if len(files) != 20 or len(set(files)) != 20 or 'index.html' not in files:
-        fail('Manifestet måste innehålla exakt 20 unika filer inklusive index.html.')
+    if len(files) != EXPECTED_FILES or len(set(files)) != EXPECTED_FILES or 'index.html' not in files:
+        fail('Manifestet måste innehålla exakt %d unika filer inklusive index.html.' % EXPECTED_FILES)
     for name in files:
         parts = name.split('/')
         if name.startswith('/') or any(not SAFE.fullmatch(p) or p in ('.','..') or p.startswith('-') for p in parts):
@@ -192,7 +195,7 @@ def main():
     args = parser.parse_args()
     files = load_manifest()
     if args.dry_run:
-        print('Lokal kontroll OK: exakt 20 ordinarie filer. index.html publiceras sist. Ingen nätverksanslutning.')
+        print('Lokal kontroll OK: exakt %d ordinarie filer.' % EXPECTED_FILES + ' index.html publiceras sist. Ingen nätverksanslutning.')
         return
     if args.mode == 'production':
         if os.environ.get('PRODUCTION_ENABLED') != 'true' or os.environ.get('CONFIRM_PRODUCTION') != 'PUBLISH evera.care':
@@ -246,7 +249,7 @@ def main():
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / name, destination)
         publish(client, target, files, staging)
-        print('Publicering klar: 20 filer. Mål: ' + target)
+        print('Publicering klar: %d filer. Mål: ' % EXPECTED_FILES + target)
 
 if __name__ == '__main__':
     try:
