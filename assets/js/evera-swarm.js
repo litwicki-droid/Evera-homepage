@@ -32,7 +32,7 @@
  *   shape: 'logo',    // 'logo' = Everas E, 'gear' = kugghjul (kuggarna rör sig som E:ets staplar)
  *   zoom: 1,          // >1 = större i bilden
  *   loop: false,      // true = sprids ut och samlas om och om igen
- *   loopHold: 5,      // sekunder som formen visas mellan varje utspridning
+ *   loopHold: 10,     // sekunder som formen visas mellan varje utspridning
  *   gather: 0.9,      // sekunder för ihopsamlingen
  *   scatter: 0.75,    // sekunder för utspridningen
  *   rotate: 'spin',   // 'spin' = snurrar runt sin axel, 'swing' = pendlar fram och tillbaka
@@ -282,7 +282,7 @@
     // ---- simulering ----
     var userPaused = false;
     // ---- start/slinga: utspridd -> samlas -> visas -> sprids ut -> ... ----
-    var LOOP = !!opts.loop, HOLD = opts.loopHold != null ? opts.loopHold : 5;
+    var LOOP = !!opts.loop, HOLD = opts.loopHold != null ? opts.loopHold : 10;
     var GATHER = opts.gather || 0.9, SCATTER = opts.scatter || 0.75, OUT = 0.5;  // sekunder
     var loopPhase = 'gather', loopT = 0, spread = 1, firstFrame = true;
     function ease(x) { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }

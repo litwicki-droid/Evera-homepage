@@ -114,7 +114,7 @@
     };
     Object.keys(MODES).forEach(function (k) {
       var m = MODES[k];
-      m.swarm = EveraSwarm.mount(document.getElementById(m.canvas), { shape: m.shape, zoom: TILE_ZOOM, loop: true, loopHold: 5, count: window.innerWidth < 700 ? 5000 : 10000 });
+      m.swarm = EveraSwarm.mount(document.getElementById(m.canvas), { shape: m.shape, zoom: TILE_ZOOM, loop: true, loopHold: 10, count: window.innerWidth < 700 ? 5000 : 10000 });
     });
     if (!MODES.presence.swarm) { document.querySelector('.chooser__hint').textContent = 'Din webbläsare stöder inte WebGL2.'; return; }
     window.__modes = MODES; // för test
