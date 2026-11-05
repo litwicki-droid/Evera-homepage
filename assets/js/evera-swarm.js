@@ -31,6 +31,7 @@
  * Inställningar: EveraSwarm.mount(canvas, {
  *   shape: 'logo',    // 'logo' = Everas E, 'gear' = kugghjul (kuggarna rör sig som E:ets staplar)
  *   zoom: 1,          // >1 = större i bilden
+ *   gearSpin: 0.6,    // kugghjulets snurr runt sin mittaxel, radianer/sekund
  *   loop: false,      // true = sprids ut och samlas om och om igen
  *   loopHold: 10,     // sekunder som formen visas mellan varje utspridning
  *   gather: 0.9,      // sekunder för ihopsamlingen
@@ -121,6 +122,7 @@
     var GT = 8, RI = 0.36, RO = 0.70, GD = 0.13, TR = 0.13;  // kuggar, inner-/ytterradie, halvt djup, kuggens radie
     var TL_REST = 0.24, TL_CALM = 0.16;                     // kuggens längd i vila / i lugn våg
     var GEAR_BAND = [0, 1, 2, 3, 4, 3, 2, 1];               // frekvensband per kugge, symmetriskt runt ringen
+    var GEAR_SPIN = (opts.gearSpin != null ? opts.gearSpin : 0.6) * (reduce ? 0.3 : 1);  // radianer/sekund
     var NB = SHAPE === 'gear' ? GT : 5;                     // antal rörliga staplar/kuggar
     var ringA = null, ringR = null, ringZ = null, isRing = null;
 
@@ -412,7 +414,8 @@
       tw += dt * (idle ? 1.25 : 0.6 + 1.6 * level);  // vila: loggans tempo, röst: tempot följer rösten
 
       var gearRot = 0;
-      if (SHAPE === 'gear') { gearSpin += dt * (0.25 + 0.7 * level); gearRot = gearSpin; }
+      // kugghjulet snurrar rakt runt sin egen mittaxel, lite fortare när någon pratar
+      if (SHAPE === 'gear') { gearSpin -= dt * GEAR_SPIN * (1 + 0.8 * level); gearRot = gearSpin; }
       for (var b = 0; b < NB; b++) {
         var B = bars[b];
         if (B.delay > 0) B.delay -= dt;
@@ -452,6 +455,7 @@
       if (ROT === 'spin') yaw += dt * SPIN * (1 + 0.6 * level);
       else { swingPh += dt * (1.8 + 0.8 * level); yaw = Math.sin(swingPh) * SWING_DEG * Math.PI / 180; }
       var pitch = Math.sin(t * 0.45) * 0.08;
+      if (SHAPE === 'gear') { yaw = 0; pitch = 0; }  // står rakt vänt mot betraktaren, ingen vobbling
       var cy0 = Math.cos(yaw), sy0 = Math.sin(yaw), cp = Math.cos(pitch), sp0 = Math.sin(pitch);
       var K = 14, damp = Math.exp(-dt * 3.2), cool = Math.exp(-dt * 1.9);
       var FQ = 1.8, FLOW = 8, ft = t * 1.2, HR = T / 2;
