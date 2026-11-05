@@ -27,6 +27,7 @@
  *   swarm.pause(); swarm.resume();        // stoppa/starta animationen (sparar batteri)
  *   swarm.setZoom(1.4);                   // ändra storlek medan den kör
  *   swarm.setLoop(true|false);            // slå på/av slingan
+ *   swarm.restart();                      // börja om: utspridda kulor som samlas
  *
  * Inställningar: EveraSwarm.mount(canvas, {
  *   shape: 'logo',    // 'logo' = Everas E, 'gear' = kugghjul (kuggarna rör sig som E:ets staplar)
@@ -567,6 +568,8 @@
         gl.useProgram(prog); gl.uniform1f(U.uCam, CAM);
         gl.uniform1f(U.uFogNear, CAM - 1.2); gl.uniform1f(U.uFogFar, CAM + 2.5);
       },
+      // börja om från utspridda kulor som samlas (t.ex. varje gång en panel öppnas)
+      restart: function () { firstFrame = true; loopPhase = 'gather'; loopT = 0; spread = 1; heat.fill(0); vel.fill(0); },
       setLoop: function (on) { LOOP = !!on; if (!LOOP && loopPhase !== 'gather') { loopPhase = 'hold'; loopT = 0; } },
       pause: function () { userPaused = true; running = false; },
       resume: function () { userPaused = false; if (!running && !document.hidden) { running = true; last = performance.now(); requestAnimationFrame(step); } },

@@ -7,6 +7,7 @@
    5. Orange ruta "Every Interaction Counts"
    6. Ljudknappen (nere till vänster)
    7. Tillgänglighet och mobil
+   8. Röstlägen bakom den orange rutan (assets/js/evera-voice.js)
    ========================================================================== */
 
 /* 1. Typsnitt ------------------------------------------------------------- */
@@ -144,9 +145,14 @@ html, body {
   text-transform: uppercase;
   color: var(--cream);
   position: relative;
-  cursor: default;
+  border: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+.pill:focus-visible { outline: 2px solid var(--cream); outline-offset: 4px; }
+.pill.is-expanded { visibility: hidden; }   /* panelen har tagit rutans plats */
 
 /* "Elektrisk stöt" när muspekaren når rutan (styrs av assets/js/zap.js).
    Rutan darrar diskret, texten delas kort i skivor med röd/blå kant, ~0,25 s. */
@@ -237,4 +243,169 @@ html, body {
   .pill.is-zap { opacity: 1; }
   .hero__video { display: none; }
   .hero { background: #3b2a22 url("../images/evera-bg-poster.jpg") center / cover no-repeat; }
+}
+
+/* 8. Röstlägen bakom den orange rutan --------------------------------------
+   Klick på rutan: den darrar och expanderar till en panel med två levande val
+   (E-loggan och kugghjulet av kulor). Valt läge öppnas i helskärm med mikrofon. */
+.vpanel[hidden], .vbackdrop[hidden], .vstage[hidden], .vbtn[hidden] { display: none !important; }
+
+.vbackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: rgba(12, 14, 22, .55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.vpanel {
+  position: fixed;
+  z-index: 40;
+  overflow: hidden;
+  border-radius: 32px;
+  background: radial-gradient(ellipse at 50% 42%, #232c45 0%, var(--navy) 70%) var(--navy);
+  box-shadow: 0 30px 80px rgba(10, 8, 6, .45);
+  color: var(--cream);
+}
+/* den orange ytan som tonar bort när rutan växer */
+.vpanel__skin {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(135deg, var(--terra) 0%, var(--terra-soft) 100%);
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+/* rutans text ligger kvar i mitten och tonar ut när rutan växer */
+.vpanel__skin-text {
+  font: 500 clamp(11px, 1.15vw, 15px)/1 var(--font-body);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--cream);
+  white-space: nowrap;
+  padding-left: 0.28em;
+}
+.vpanel__inner {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 3vh, 32px);
+  padding: 56px max(16px, 3vw) 32px;
+  opacity: 0;
+  transition: opacity .35s ease-out;
+}
+.vpanel.is-ready .vpanel__inner { opacity: 1; }
+.vpanel__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(246, 243, 239, .22);
+  background: rgba(246, 243, 239, .06);
+  color: var(--cream);
+  font: 400 24px/1 var(--font-body);
+  cursor: pointer;
+}
+.vpanel__close:hover { background: rgba(246, 243, 239, .14); }
+.vpanel__close:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
+.vpanel__hint { margin: 0; color: rgba(246, 243, 239, .62); font-size: 14px; letter-spacing: .02em; text-align: center; }
+.vpanel__options { display: flex; gap: clamp(16px, 5vw, 64px); justify-content: center; width: 100%; }
+
+.vopt {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(38vw, 320px, 52vh);
+  min-width: 0;
+  border-radius: 24px;
+  padding: 10px 10px 18px;
+  transition: background .25s, transform .25s;
+  -webkit-tap-highlight-color: transparent;
+}
+.vopt:hover { background: rgba(246, 243, 239, .05); }
+.vopt:focus-visible { outline: 2px solid var(--cream); outline-offset: 4px; }
+.vopt:active { transform: scale(.985); }
+.vopt__view { position: relative; display: block; width: 100%; aspect-ratio: 1; max-width: 100%; }
+/* ritytan är större än kortet och genomskinlig, så utspridda kulor inte klipps */
+.vopt__view canvas { position: absolute; left: -60%; top: -60%; width: 220%; height: 220%; display: block; pointer-events: none; }
+.vopt__name { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.vopt__brand { font: 700 clamp(20px, 2.6vw, 28px)/1 var(--font-logo); letter-spacing: .01em; }
+.vopt__sub { font: 500 clamp(10px, 1.2vw, 12px)/1.2 var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: rgba(246, 243, 239, .62); }
+
+/* mikrofonläget i helskärm */
+.vstage {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: radial-gradient(ellipse at 50% 45%, #232c45 0%, var(--navy) 65%) var(--navy);
+  color: var(--cream);
+}
+.vstage__view { position: absolute; inset: 0; }
+.vstage__view canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.vstage__top {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+}
+.vstage__title { margin: 0; flex: 1; min-width: 0; text-align: center; font: 700 clamp(18px, 2.4vw, 24px)/1.2 var(--font-logo); }
+.vstage__title span { display: block; margin-top: 4px; font: 500 .62em var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: rgba(246, 243, 239, .62); }
+.vstage__spacer { width: 112px; flex: none; }
+.vstage__bottom {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.vstage__status { margin: 0; min-height: 1.4em; text-align: center; font-size: 14px; color: rgba(246, 243, 239, .62); }
+.vstage__row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.vbtn {
+  font: 500 15px/1.4 var(--font-body);
+  color: var(--cream);
+  background: rgba(246, 243, 239, .08);
+  border: 1px solid rgba(246, 243, 239, .2);
+  border-radius: 999px;
+  padding: 11px 20px;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .2s, border-color .2s;
+}
+.vbtn:hover { background: rgba(246, 243, 239, .14); }
+.vbtn:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
+.vbtn--back { width: 112px; flex: none; padding: 9px 14px; white-space: nowrap; }
+.vbtn.is-on { border-color: #9fd8ff; background: rgba(159, 216, 255, .16); }
+.vbtn.is-evera { border-color: var(--terra); background: rgba(199, 112, 61, .22); }
+
+@media (max-width: 480px) {
+  .vopt { padding: 6px 4px 12px; gap: 8px; }
+  .vopt__sub { letter-spacing: .1em; }
+  .vstage__spacer, .vbtn--back { width: 92px; }
+  .vbtn--back { font-size: 13px; padding: 8px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vpanel__inner, .vopt, .vbtn { transition: none; }
 }
