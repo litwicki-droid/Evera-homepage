@@ -9,8 +9,9 @@
  *   1. Evera – Your Presence  (E-loggan)
  *   2. Evera – For Family     (kugghjulet)
  *
- * Klick på ett val öppnar mikrofonläget inne i samma ruta. Den lilla orange
- * etiketten överst i rutan (eller Esc) krymper tillbaka den till den orange rutan.
+ * Den orange rutan ligger kvar ovanför; den blå rutan växer fram under den.
+ * Klick på ett val öppnar mikrofonläget inne i samma ruta. Nytt klick på den
+ * orange rutan (eller Esc) drar ihop den blå rutan igen.
  * Stilar: assets/css/main.css, avsnitt 8.
  */
 (function () {
@@ -45,15 +46,11 @@
     return e;
   }
 
-  var label = pill.textContent.trim();
   var box = el('section', 'vembed', { 'aria-label': 'Talk with Evera', hidden: '' });
   var skin = el('div', 'vembed__skin', { 'aria-hidden': 'true' });     // orange yta som tonar bort
-  var skinText = el('span', 'vembed__skin-text'); skinText.textContent = label;
-  skin.appendChild(skinText);
   var inner = el('div', 'vembed__inner');
 
-  var collapseBtn = el('button', 'vembed__label', { type: 'button', 'aria-expanded': 'true', title: 'Close' });
-  collapseBtn.textContent = label;
+  pill.setAttribute('aria-expanded', 'false');
 
   var chooser = el('div', 'vembed__chooser');
   var hint = el('p', 'vembed__hint'); hint.textContent = 'Choose how you want to talk with Evera';
@@ -77,7 +74,7 @@
       '</div>' +
     '</div>';
 
-  inner.appendChild(collapseBtn); inner.appendChild(chooser); inner.appendChild(stage);
+  inner.appendChild(chooser); inner.appendChild(stage);
   box.appendChild(skin); box.appendChild(inner);
   pill.parentNode.insertBefore(box, pill.nextSibling);
 
@@ -147,19 +144,19 @@
       var ok = mountSwarms();
       eachSwarm(function (s) { s.setZoom(TILE_ZOOM); s.setLoop(true); s.restart(); s.pause(); });
 
-      // rutan tar pillrets plats i flödet och växer till sin naturliga storlek
-      pill.hidden = true;
+      // den orange rutan ligger kvar; den blå rutan växer fram under den
       box.hidden = false;
+      pill.setAttribute('aria-expanded', 'true');
       box.classList.remove('is-ready');
       hero.classList.add('is-voice');           // loggan krymper lite så att allt ryms
       var to = box.getBoundingClientRect();
-      cancelAll(box); cancelAll(skin); cancelAll(skinText);
+      cancelAll(box); cancelAll(skin);
       var anim = box.animate([
-        { width: pillSize.w + 'px', height: pillSize.h + 'px', borderRadius: (pillSize.h / 2) + 'px' },
-        { width: to.width + 'px', height: to.height + 'px', borderRadius: '28px' }
+        { width: pillSize.w + 'px', height: '0px', opacity: 0, borderRadius: (pillSize.h / 2) + 'px' },
+        { opacity: 1, offset: 0.2 },
+        { width: to.width + 'px', height: to.height + 'px', opacity: 1, borderRadius: '28px' }
       ], { duration: OPEN_MS, easing: EASE });
-      skin.animate([{ opacity: 1 }, { opacity: 1, offset: 0.35 }, { opacity: 0 }], { duration: OPEN_MS, easing: 'ease-out', fill: 'forwards' });
-      skinText.animate([{ opacity: 1 }, { opacity: 0, offset: 0.3 }, { opacity: 0 }], { duration: OPEN_MS, fill: 'forwards' });
+      skin.animate([{ opacity: 1 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: OPEN_MS, easing: 'ease-out', fill: 'forwards' });
 
       anim.onfinish = function () {
         box.classList.add('is-ready');          // innehållet tonas in
@@ -178,24 +175,24 @@
     eachSwarm(function (s) { s.pause(); });
     var from = box.getBoundingClientRect();
     hero.classList.remove('is-voice');
-    cancelAll(skin); cancelAll(skinText);
+    cancelAll(skin);
+    pill.setAttribute('aria-expanded', 'false');
     var anim = box.animate([
-      { width: from.width + 'px', height: from.height + 'px', borderRadius: '28px' },
-      { width: pillSize.w + 'px', height: pillSize.h + 'px', borderRadius: (pillSize.h / 2) + 'px' }
+      { width: from.width + 'px', height: from.height + 'px', opacity: 1, borderRadius: '28px' },
+      { opacity: 1, offset: 0.8 },
+      { width: pillSize.w + 'px', height: '0px', opacity: 0, borderRadius: (pillSize.h / 2) + 'px' }
     ], { duration: CLOSE_MS, easing: EASE, fill: 'forwards' });
     skin.animate([{ opacity: 0 }, { opacity: 1 }], { duration: CLOSE_MS, easing: 'ease-in', fill: 'forwards' });
-    skinText.animate([{ opacity: 0 }, { opacity: 0, offset: 0.7 }, { opacity: 1 }], { duration: CLOSE_MS, fill: 'forwards' });
     anim.onfinish = function () {
       box.hidden = true;
       anim.cancel();
-      pill.hidden = false;
       isOpen = false; busy = false;
       moveFocus(pill);
     };
   }
 
-  pill.addEventListener('click', open);
-  collapseBtn.addEventListener('click', close);
+  // den orange rutan öppnar och stänger
+  pill.addEventListener('click', function () { if (isOpen) close(); else open(); });
 
   // ---- mikrofonläge inne i rutan ----
   function setStatus(t) { status.textContent = t; }
