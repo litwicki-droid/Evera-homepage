@@ -5,7 +5,7 @@
  * Rörelsen är samma som den levande loggan på startsidan (evera-logo.js),
  * men styrs av röst i stället för en klocka:
  *
- *  - Hela tiden: loggan pendlar fram och tillbaka runt sin lodräta axel.
+ *  - Hela tiden: loggan snurrar runt sin lodräta axel.
  *  - Tyst: staplarna står som ett E. Mittarmen andas lätt.
  *  - Någon pratar: staplarna glider ut till en ljudvåg och följer rösten
  *    som en equalizer (fem frekvensband, mittstapeln = grundtonen).
@@ -25,9 +25,9 @@
  *   swarm.setLevel('user'|'evera', 0..1); // egen nivå, t.ex. från en röst-API
  *
  * Inställningar: EveraSwarm.mount(canvas, {
- *   rotate: 'swing',  // 'swing' = pendlar fram och tillbaka, 'spin' = snurrar hela varv
- *   swing: 62,        // grader åt varje håll vid 'swing'
- *   spin: 0.5         // radianer/sekund vid 'spin'
+ *   rotate: 'spin',   // 'spin' = snurrar runt sin axel, 'swing' = pendlar fram och tillbaka
+ *   spin: 0.8,        // radianer/sekund vid 'spin' (0 = stilla)
+ *   swing: 62         // grader åt varje håll vid 'swing'
  * })
  */
 (function () {
@@ -263,9 +263,9 @@
     for (var bi = 0; bi < 5; bi++) bars.push({ mix: 0, vel: 0, to: 0, delay: 0, lvl: 0, x0: 0, len: 0, yc: 0 });
     var state = 'e', quiet = 0, amp = 0, ampVel = 0, tw = 0;
     var band = [0, 0, 0, 0, 0];
-    // 'swing' (standard): pendlar fram och tillbaka. 'spin': snurrar hela varv.
-    var ROT = opts.rotate || 'swing';
-    var SPIN = (opts.spin != null ? opts.spin : 0.5) * (reduce ? 0.3 : 1);  // vid 'spin': radianer/sekund
+    // 'spin' (standard): snurrar runt sin axel. 'swing': pendlar fram och tillbaka.
+    var ROT = opts.rotate || 'spin';
+    var SPIN = (opts.spin != null ? opts.spin : 0.8) * (reduce ? 0.3 : 1);  // vid 'spin': radianer/sekund (0.8 ≈ ett varv på 8 s)
     var SWING_DEG = (opts.swing != null ? opts.swing : 62) * (reduce ? 0.3 : 1); // vid 'swing': grader åt varje håll
     var yaw = 0, swingPh = 0;
 
@@ -360,7 +360,7 @@
         B.x0 = x; B.len = len; B.yc = b * (T + G) + T / 2;
       }
 
-      // loggan pendlar fram och tillbaka (eller snurrar), lite livligare när någon pratar
+      // loggan snurrar runt sin axel (eller pendlar), lite fortare när någon pratar
       if (ROT === 'spin') yaw += dt * SPIN * (1 + 0.6 * level);
       else { swingPh += dt * (1.8 + 0.8 * level); yaw = Math.sin(swingPh) * SWING_DEG * Math.PI / 180; }
       var pitch = Math.sin(t * 0.45) * 0.08;
