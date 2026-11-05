@@ -263,9 +263,9 @@ html, body {
   height: clamp(360px, calc(100svh - 290px), 580px);
   overflow: hidden;
   border-radius: 28px;
-  background: rgba(20, 26, 43, .86);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: rgba(20, 26, 43, .5);       /* 50 % genomskinlig: videon syns igenom */
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   box-shadow: 0 18px 50px rgba(20, 10, 4, .35), inset 0 0 0 1px rgba(246, 243, 239, .08);
   color: var(--cream);
   text-align: center;
@@ -331,7 +331,7 @@ html, body {
   padding: 56px 16px 20px;
 }
 .vembed__hint { margin: 0; color: rgba(246, 243, 239, .62); font-size: 14px; letter-spacing: .02em; }
-.vembed__options { display: flex; gap: clamp(16px, 5vw, 64px); justify-content: center; width: 100%; }
+.vembed__options { display: flex; gap: clamp(40px, 14vw, 240px); justify-content: center; width: 100%; }   /* luft i mitten */
 
 .vopt {
   all: unset;
@@ -341,8 +341,8 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  width: min(38vw, 290px, calc(100vh - 560px));
-  width: min(38vw, 290px, max(150px, calc(100svh - 560px)));
+  width: min(30vw, 290px, calc(100vh - 520px));
+  width: min(30vw, 290px, max(150px, calc(100svh - 520px)));
   min-width: 0;
   border-radius: 22px;
   padding: 8px 8px 14px;
@@ -408,7 +408,8 @@ html, body {
 
 @media (max-width: 480px) {
   .vembed { height: clamp(340px, calc(100vh - 200px), 560px); height: clamp(340px, calc(100svh - 200px), 560px); border-radius: 24px; }
-  .vopt { width: 42vw; padding: 6px 4px 10px; gap: 8px; }
+  .vembed__options { gap: 12vw; }
+  .vopt { width: 38vw; padding: 6px 4px 10px; gap: 8px; }
   .vopt__sub { letter-spacing: .1em; }
   .vstage__spacer, .vbtn--back { width: 86px; }
   .vbtn--back { font-size: 12px; padding: 7px 8px; }

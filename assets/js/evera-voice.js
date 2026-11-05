@@ -58,7 +58,7 @@
   var chooser = el('div', 'vembed__chooser');
   var hint = el('p', 'vembed__hint'); hint.textContent = 'Choose how you want to talk with Evera';
   var options = el('div', 'vembed__options');
-  chooser.appendChild(hint); chooser.appendChild(options);
+  chooser.appendChild(options);   // ingen rubrik; hint visas bara om WebGL2 saknas
 
   var stage = el('div', 'vembed__stage', { hidden: '', 'aria-live': 'polite' });
   stage.innerHTML =
@@ -117,7 +117,7 @@
       if (!m.swarm) ok = false;
     });
     mounted = true;
-    if (!ok) hint.textContent = 'Your browser does not support WebGL2, which these animations need.';
+    if (!ok) { hint.textContent = 'Your browser does not support WebGL2, which these animations need.'; chooser.insertBefore(hint, options); }
     return ok;
   }
   function eachSwarm(fn) { Object.keys(MODES).forEach(function (k) { if (MODES[k].swarm) fn(MODES[k].swarm, MODES[k]); }); }
