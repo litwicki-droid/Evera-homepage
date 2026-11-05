@@ -264,9 +264,10 @@ html, body {
   overflow: hidden;
   border-radius: 28px;
   background: rgba(20, 26, 43, .5);       /* 50 % genomskinlig: videon syns igenom */
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 18px 50px rgba(20, 10, 4, .35), inset 0 0 0 1px rgba(246, 243, 239, .08);
+  /* ingen backdrop-filter och ingen ljus kantlinje: de gav en vit ram runt rutan */
+  box-shadow: 0 18px 50px rgba(20, 10, 4, .35);
+  isolation: isolate;                      /* klipper ritytorna mot de rundade hörnen även under animationen */
+  transform: translateZ(0);
   color: var(--cream);
   text-align: center;
 }
