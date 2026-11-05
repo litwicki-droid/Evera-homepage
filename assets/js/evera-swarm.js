@@ -33,6 +33,8 @@
  *   zoom: 1,          // >1 = större i bilden
  *   loop: false,      // true = sprids ut och samlas om och om igen
  *   loopHold: 5,      // sekunder som formen visas mellan varje utspridning
+ *   gather: 0.9,      // sekunder för ihopsamlingen
+ *   scatter: 0.75,    // sekunder för utspridningen
  *   rotate: 'spin',   // 'spin' = snurrar runt sin axel, 'swing' = pendlar fram och tillbaka
  *   spin: 0.8,        // radianer/sekund vid 'spin' (0 = stilla)
  *   swing: 62,        // grader åt varje håll vid 'swing'
@@ -281,7 +283,7 @@
     var userPaused = false;
     // ---- start/slinga: utspridd -> samlas -> visas -> sprids ut -> ... ----
     var LOOP = !!opts.loop, HOLD = opts.loopHold != null ? opts.loopHold : 5;
-    var GATHER = 1.8, SCATTER = 1.5, OUT = 0.7;      // sekunder
+    var GATHER = opts.gather || 0.9, SCATTER = opts.scatter || 0.75, OUT = 0.5;  // sekunder
     var loopPhase = 'gather', loopT = 0, spread = 1, firstFrame = true;
     function ease(x) { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }
     var t = 0, last = performance.now(), running = true, tint = [0, 0, 0], tintAmt = 0;
@@ -367,6 +369,8 @@
       else if (loopPhase === 'scatter') { spread = ease(loopT / SCATTER); if (loopT >= SCATTER) { loopPhase = 'out'; loopT = 0; } }
       else if (loopPhase === 'out') { spread = 1; if (loopT >= OUT) { loopPhase = 'gather'; loopT = 0; } }
       // synfältets halva höjd/bredd vid z = 0, för utspridda platser
+      // styvare fjädrar medan kulorna sprids eller samlas, så att de hinner med
+      var kMove = (loopPhase === 'gather' || loopPhase === 'scatter') ? 2.6 : 1;
       var hh = CAM / F * 0.92, hw = hh * canvas.width / Math.max(1, canvas.height), sDepth = 1.6;
       if (firstFrame) {
         firstFrame = false;
@@ -502,7 +506,7 @@
         heat[i] = h;
 
         // olika styvhet per kula: några släpar efter i svängarna, det ger flöde
-        var k = K * (0.35 + 0.9 * sd) * (1 - 0.93 * h);
+        var k = K * (0.35 + 0.9 * sd) * (1 - 0.93 * h) * kMove;
         var ax = (tx - px) * k, ay = (ty - py) * k, az = (tz - pz) * k;
         if (h > 0.02) {
           // virvelfält utan källor (curl av ett sinusfält) ger rökliknande slingor
