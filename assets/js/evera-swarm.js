@@ -1,16 +1,19 @@
 /*
- * Evera – röststyrd partikelsvärm
+ * Evera – röststyrd logga av partiklar
  * ---------------------------------------------------------------
- * Tusentals små kulor bildar en levande form som andas lugnt i vila.
- * När någon pratar sveper en osynlig röstpekare över formen: där den passerar
- * lossnar kulorna, lyser upp och strömmar ut i slingor som rök i vatten,
- * för att sedan söka sig tillbaka. Rösten styr storlek, styrka och tempo.
+ * Tusentals små kulor bygger Everas logga: fem rundade staplar som bildar E:et.
+ * Rörelsen är samma som den levande loggan på startsidan (evera-logo.js),
+ * men styrs av röst i stället för en klocka:
  *
- *  - Din röst (mikrofon): svalt ljus, kulorna sprids utåt.
- *  - Everas röst (uppspelat ljud / talsyntes): varm ton, vågor över ytan.
+ *  - Tyst: staplarna står som ett E. Mittarmen andas lätt.
+ *  - Någon pratar: staplarna glider ut till en ljudvåg och följer rösten
+ *    som en equalizer (fem frekvensband, mittstapeln = grundtonen).
+ *    Samtidigt sveper en osynlig röstpekare över loggan: där den passerar
+ *    lossnar kulorna, lyser upp och strömmar ut i slingor som rök i vatten.
+ *  - Tystnad igen: vågen landar tillbaka som ett E, nedersta stapeln först.
  *
- * Följer INTE muspekaren – bara röst in och röst ut.
- * Ren WebGL2, inga bibliotek. Egen kod, inget innehåll från andra sajter.
+ *  Din röst (mikrofon) ger en sval ton, Everas röst (ljud/talsyntes) en varm.
+ *  Följer INTE muspekaren. Ren WebGL2, inga bibliotek.
  *
  * Användning:
  *   var swarm = EveraSwarm.mount(document.querySelector('canvas'));
@@ -81,23 +84,31 @@
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var MOTION = reduce ? 0.35 : 1;
 
-    var colBase = hex(opts.color || '#d8dce5');
+    var colBase = hex(opts.color || '#efe9e2');
     var colUser = hex(opts.userColor || '#9fd8ff');
     var colEvera = hex(opts.everaColor || '#e08a55');
     var colFog = hex(opts.fog || '#141a2b');
 
-    // ---- partiklar ----
-    var base = new Float32Array(N * 3), pos = new Float32Array(N * 3), vel = new Float32Array(N * 3);
+    // ---- loggans mått (samma som evera-logo.js) ----
+    var T = 14, G = 7.5, W = 84, H = 5 * T + 4 * G, S = 2 / H;  // S: SVG-enheter -> världsenheter
+    var E_SHAPE = [1, T / W, 0.8, T / W, 1];        // arm, prick, mittarm, prick, arm
+    var WAVE_SHAPE = [0.72, 0.9, 1, 0.9, 0.72];     // mittstapeln når längst
+    var SWING = 1.3;
+    var BAND_OF_BAR = [3, 1, 0, 2, 4];              // mittstapeln får grundtonen
+
+    // ---- partiklar: var och en hör till en stapel och en plats i den ----
+    var pos = new Float32Array(N * 3), vel = new Float32Array(N * 3), off = new Float32Array(N * 3);
     var speed = new Float32Array(N), size = new Float32Array(N), seed = new Float32Array(N);
-    var GOLD = Math.PI * (3 - Math.sqrt(5));
+    var barOf = new Uint8Array(N), along = new Float32Array(N);
     for (var i = 0; i < N; i++) {
-      var y = 1 - (i + 0.5) / N * 2, rr = Math.sqrt(1 - y * y), th = GOLD * i;
-      // de flesta på ytan, några en bit inåt så formen känns fyllig
-      var depth = 1 - 0.22 * Math.pow(Math.random(), 2.5);
-      // lätt ägg-/droppform i stället för perfekt klot
-      var sx = Math.cos(th) * rr, sz = Math.sin(th) * rr, sy = y * 1.12 - 0.08 * (1 - y * y);
-      base[i * 3] = sx * depth; base[i * 3 + 1] = sy * depth; base[i * 3 + 2] = sz * depth;
-      pos[i * 3] = base[i * 3] * 3 * Math.random(); pos[i * 3 + 1] = base[i * 3 + 1] * 3 * Math.random(); pos[i * 3 + 2] = base[i * 3 + 2] * 3 * Math.random();
+      barOf[i] = i % 5;
+      along[i] = Math.random();
+      // punkt i ett klot (mest nära ytan) – stapeln blir en rundad kapsel
+      var u = Math.random() * 2 - 1, th = Math.random() * 6.2832, rr = Math.sqrt(1 - u * u);
+      var rad = 0.78 + 0.22 * Math.sqrt(Math.random());
+      off[i * 3] = Math.cos(th) * rr * rad; off[i * 3 + 1] = Math.sin(th) * rr * rad; off[i * 3 + 2] = u * rad;
+      // startar utspridda och samlas till loggan
+      pos[i * 3] = (Math.random() - 0.5) * 6; pos[i * 3 + 1] = (Math.random() - 0.5) * 4; pos[i * 3 + 2] = (Math.random() - 0.5) * 3;
       seed[i] = Math.random();
       size[i] = 0.75 + Math.random() * 0.5;
     }
@@ -163,8 +174,24 @@
       return Math.min(1, Math.max(0, (v - 0.012) * 7));
     }
     function analyser(node) {
-      var a = audioCtx().createAnalyser(); a.fftSize = 1024; node.connect(a);
+      var a = audioCtx().createAnalyser(); a.fftSize = 1024; a.smoothingTimeConstant = 0.6; node.connect(a);
       return a;
+    }
+    // fem frekvensband (Hz) för equalizer-staplarna
+    var EDGES = [120, 320, 700, 1400, 2800, 6000];
+    function bands(s, outArr) {
+      if (!s.analyser) return false;
+      var a = s.analyser;
+      if (!s.freq) s.freq = new Uint8Array(a.frequencyBinCount);
+      a.getByteFrequencyData(s.freq);
+      var hz = a.context.sampleRate / a.fftSize;
+      for (var b = 0; b < 5; b++) {
+        var lo = Math.max(1, Math.floor(EDGES[b] / hz)), hi = Math.max(lo + 1, Math.floor(EDGES[b + 1] / hz)), sum = 0;
+        for (var k = lo; k < hi; k++) sum += s.freq[k];
+        var v = sum / (hi - lo) / 255;
+        outArr[b] = Math.max(outArr[b], Math.min(1, Math.max(0, (v - 0.22) * 2.4)));
+      }
+      return true;
     }
 
     var micStream = null, micNode = null;
@@ -182,7 +209,7 @@
     function stopMic() {
       if (micStream) micStream.getTracks().forEach(function (t) { t.stop(); });
       if (micNode) micNode.disconnect();
-      micStream = micNode = null; src.user.analyser = null;
+      micStream = micNode = null; src.user.analyser = null; src.user.freq = null;
     }
 
     var attached = new WeakMap();
@@ -216,18 +243,34 @@
     function setLevel(who, v) { if (src[who]) src[who].manual = Math.max(0, Math.min(1, v)); }
 
     // ---- simulering ----
-    // Varje röst styr en osynlig "pekare" som vandrar över formen. Där den
-    // passerar värms kulorna upp: de lossnar, lyser vitt och strömmar ut i
-    // slingor längs ett virvelfält (som rök i vatten). När värmen klingar av
-    // drar fjädern dem tillbaka till formen.
     var t = 0, last = performance.now(), running = true, tint = [0, 0, 0], tintAmt = 0;
-    var wave = [0, 1, 0], ripplePhase = 0;
     var heat = new Float32Array(N);
     var agents = {
-      user: { phase: 0.0, off: 0.0, p: [0, 0, 1], v: [0, 0, 0], R: 0, S: 0, burst: 0 },
-      evera: { phase: 2.0, off: 2.4, p: [0, 0, 1], v: [0, 0, 0], R: 0, S: 0, burst: 0 }
+      user: { phase: 0.0, off: 0.0, p: [0, 0, 0], v: [0, 0, 0], R: 0, S: 0, burst: 0 },
+      evera: { phase: 2.0, off: 2.4, p: [0, 0, 0], v: [0, 0, 0], R: 0, S: 0, burst: 0 }
     };
     var agentList = [agents.user, agents.evera];
+
+    // staplarnas tillstånd, som i evera-logo.js
+    var bars = [];
+    for (var bi = 0; bi < 5; bi++) bars.push({ mix: 0, vel: 0, to: 0, delay: 0, lvl: 0, x0: 0, len: 0, yc: 0 });
+    var state = 'e', quiet = 0, amp = 0, ampVel = 0, tw = 0;
+    var band = [0, 0, 0, 0, 0];
+
+    function go(to) {
+      state = to;
+      bars.forEach(function (b, i) {
+        b.to = to === 'wave' ? 1 : 0;
+        // in i vågen leder översta stapeln, tillbaka till E leder den nedersta
+        b.delay = reduce ? 0 : (to === 'wave' ? i * 0.06 : (4 - i) * 0.06);
+      });
+    }
+    // kritiskt dämpad fjäder: mjuk fart, ingen översvängning
+    function spring(x, v, target, w, dt) {
+      var f = 1 + 2 * dt * w, dtw2 = dt * w * w;
+      var nv = (v + dtw2 * (target - x)) / (f + dt * dtw2);
+      return [x + dt * nv, nv];
+    }
 
     function follow(s, target, dt) {
       var k = target > s.level ? 1 - Math.exp(-dt * 30) : 1 - Math.exp(-dt * 5);
@@ -235,18 +278,16 @@
       s.slow += (s.level - s.slow) * (1 - Math.exp(-dt * 2));
     }
 
-    // Vandrar över framsidan av formen; fortare ju mer det pratas, som en hand som sveper.
+    // röstpekaren vandrar över loggan, fortare ju mer det pratas
     function moveAgent(a, lvl, onset, dt) {
-      a.phase += dt * (0.2 + 2.4 * lvl);
+      a.phase += dt * (0.25 + 2.6 * lvl);
       var ph = a.phase, o = a.off;
-      var x = Math.sin(ph * 1.0 + o) * 0.85, y = Math.sin(ph * 0.77 + o * 1.7) * 0.8, z = 0.55 + 0.35 * Math.cos(ph * 0.53 + o);
-      var l = Math.hypot(x, y, z), r = 1.02;
-      x = x / l * r; y = y / l * r; z = z / l * r;
-      if (dt > 0) { a.v[0] = (x - a.p[0]) / dt; a.v[1] = (y - a.p[1]) / dt; a.v[2] = (z - a.p[2]) / dt; }
+      var x = Math.sin(ph * 1.0 + o) * 0.85, y = Math.sin(ph * 0.77 + o * 1.7) * 0.95, z = 0.1;
+      if (dt > 0) { a.v[0] = (x - a.p[0]) / dt; a.v[1] = (y - a.p[1]) / dt; a.v[2] = 0; }
       a.p[0] = x; a.p[1] = y; a.p[2] = z;
       a.burst = Math.max(a.burst * Math.exp(-dt * 5), Math.min(1, onset * 2.5));
-      a.R = 0.28 + 0.5 * lvl + 0.3 * a.burst;
-      a.S = lvl * (0.7 + 0.6 * a.burst);
+      a.R = 0.2 + 0.35 * lvl + 0.22 * a.burst;
+      a.S = lvl * (0.55 + 0.6 * a.burst);
     }
 
     function step(now) {
@@ -254,7 +295,7 @@
       var dt = Math.min(0.033, (now - last) / 1000); last = now; t += dt;
       resize();
 
-      // nivåer
+      // ---- röstnivåer ----
       var eSynth = 0;
       if (speaking) {
         if (now > speakUntil) speaking = false;
@@ -269,73 +310,96 @@
       moveAgent(agents.user, lu, Math.max(0, lu - src.user.slow), dt);
       moveAgent(agents.evera, le, Math.max(0, le - src.evera.slow), dt);
 
-      // färgton efter vem som pratar
       var wu = lu / (lu + le + 1e-4), wt = Math.min(0.7, level * 1.4);
       for (var c = 0; c < 3; c++) tint[c] = colUser[c] * wu + colEvera[c] * (1 - wu);
       tintAmt += (wt - tintAmt) * (1 - Math.exp(-dt * 4));
 
-      // Everas röst: mjuka vågor över hela ytan
-      wave[0] = Math.sin(t * 0.31); wave[1] = Math.cos(t * 0.23); wave[2] = Math.sin(t * 0.17 + 2);
-      var wl = Math.hypot(wave[0], wave[1], wave[2]); wave[0] /= wl; wave[1] /= wl; wave[2] /= wl;
-      ripplePhase += dt * (3 + 9 * le);
+      // ---- E <-> ljudvåg, styrt av röst ----
+      if (level > 0.08) { quiet = 0; if (state !== 'wave') go('wave'); }
+      else { quiet += dt; if (quiet > 0.7 && state !== 'e') go('e'); }
+      var sa = spring(amp, ampVel, state === 'wave' ? 1 : 0, state === 'wave' ? 6 : 9, dt);
+      amp = sa[0]; ampVel = sa[1];
 
-      var ang = t * 0.12, ca = Math.cos(ang), sa = Math.sin(ang);
-      var breath = 0.025 * Math.sin(t * 0.9) + 0.035 * le;
-      var K = 8, damp = Math.exp(-dt * 1.8), cool = Math.exp(-dt * 0.9);
-      var FQ = 1.5, FLOW = 5.0, ft = t * 0.5;
+      band[0] = band[1] = band[2] = band[3] = band[4] = 0;
+      var real = bands(src.user, band);
+      real = bands(src.evera, band) || real;
+      tw += dt * (0.6 + 1.6 * level);  // vågens tempo följer rösten
+
+      for (var b = 0; b < 5; b++) {
+        var B = bars[b];
+        if (B.delay > 0) B.delay -= dt;
+        else { var r2 = spring(B.mix, B.vel, B.to, B.to ? 5.5 : 6.5, dt); B.mix = r2[0]; B.vel = r2[1]; }
+        // stapelns ljudnivå: riktiga frekvensband om de finns, annars loggans vågmönster gånger rösten
+        var pat = 0.8 * (0.5 + 0.5 * Math.sin(tw * 3.6 - b * 0.95)) + 0.2 * (0.5 + 0.5 * Math.sin(tw * 7.2 - b * 1.9));
+        var target = real ? Math.max(band[BAND_OF_BAR[b]] * MOTION, pat * level * 0.5) : pat * Math.min(1, level * 1.4);
+        target = Math.sqrt(Math.min(1, target));  // når längre ut även vid lugnt tal
+        B.lvl += (target - B.lvl) * (1 - Math.exp(-dt * (target > B.lvl ? 22 : 7)));
+
+        var m = Math.min(1, Math.max(0, B.mix));
+        var eLen = E_SHAPE[b] + (b === 2 ? 0.035 * Math.sin(t * 1.6) : 0);  // mittarmen andas
+        var shape = WAVE_SHAPE[b], calm = 0.5 * shape;
+        var wLen = calm + ((0.14 + 0.86 * B.lvl) * shape - calm) * SWING * Math.max(0, amp);
+        var len = (eLen + (wLen - eLen) * m) * W;
+        var d = len - T;
+        len = T + (d + Math.sqrt(d * d + 64 * m * m)) / 2;               // mjukt golv
+        var x = ((W - len) / 2) * m;                                       // vänster som E, centrerad som våg
+        B.x0 = x; B.len = len; B.yc = b * (T + G) + T / 2;
+      }
+
+      // loggan vänder sig lätt i rummet så att den känns tredimensionell
+      var yaw = Math.sin(t * 0.35) * 0.26, pitch = Math.sin(t * 0.27) * 0.07;
+      var cy0 = Math.cos(yaw), sy0 = Math.sin(yaw), cp = Math.cos(pitch), sp0 = Math.sin(pitch);
+      var K = 9, damp = Math.exp(-dt * 2.0), cool = Math.exp(-dt * 1.0);
+      var FQ = 1.8, FLOW = 4.5, ft = t * 0.5, HR = T / 2;
 
       for (var i = 0, j = 0; i < N; i++, j += 3) {
-        var bx = base[j], by = base[j + 1], bz = base[j + 2], sd = seed[i];
-        var x = bx * ca - bz * sa, z = bx * sa + bz * ca, y = by;
-        var n = Math.sin(x * 2.3 + t * 0.7) * Math.sin(y * 2.1 - t * 0.55) * Math.sin(z * 2.5 + t * 0.6);
-        var rip = Math.sin((bx * wave[0] + by * wave[1] + bz * wave[2]) * 7 - ripplePhase) * 0.06 * le;
-        var r = 1 + breath + 0.05 * n + rip;
-        var tx = x * r, ty = y * r, tz = z * r;
+        var sd = seed[i], Bp = bars[barOf[i]];
+        // målpunkt i stapelns kapsel (SVG-enheter -> värld)
+        var sx = Bp.x0 + HR + along[i] * (Bp.len - T) + off[j] * HR;
+        var sy = Bp.yc + off[j + 1] * HR;
+        var lx = (sx - W / 2) * S, ly = (H / 2 - sy) * S, lz = off[j + 2] * HR * S;
+        // vridning
+        var rx = lx * cy0 + lz * sy0, rz = -lx * sy0 + lz * cy0;
+        var ty = ly * cp - rz * sp0, tz = ly * sp0 + rz * cp, tx = rx;
 
         var px = pos[j], py = pos[j + 1], pz = pos[j + 2];
         var vx = vel[j], vy = vel[j + 1], vz = vel[j + 2];
         var h = heat[i] * cool;
 
-        // röstpekarna värmer upp och knuffar kulorna de passerar
         for (var q = 0; q < 2; q++) {
           var A = agentList[q];
           if (A.S < 0.01) continue;
           var dx = px - A.p[0], dy = py - A.p[1], dz = pz - A.p[2];
           var d2 = dx * dx + dy * dy + dz * dz;
           if (d2 >= A.R * A.R) continue;
-          var d = Math.sqrt(d2) + 1e-5, w = 1 - d / A.R; w *= w * (0.5 + sd);
+          var dd = Math.sqrt(d2) + 1e-5, w = 1 - dd / A.R; w *= w * (0.5 + sd);
           h += w * A.S * dt * 7;
-          var push = w * A.S * dt * 7;
-          vx += (dx / d * 0.45 + A.v[0] * 0.35) * push;
-          vy += (dy / d * 0.45 + A.v[1] * 0.35) * push;
-          vz += (dz / d * 0.45 + A.v[2] * 0.35) * push;
+          var push = w * A.S * dt * 6;
+          vx += (dx / dd * 0.4 + A.v[0] * 0.35) * push;
+          vy += (dy / dd * 0.4 + A.v[1] * 0.35) * push;
+          vz += (dz / dd * 0.4 + 0.5) * push;
         }
         if (h > 1) h = 1;
         heat[i] = h;
 
-        // fjäder mot formen: nästan släppt där det är varmt
         var k = K * (1 - 0.92 * h);
         var ax = (tx - px) * k, ay = (ty - py) * k, az = (tz - pz) * k;
-
         if (h > 0.02) {
           // virvelfält utan källor (curl av ett sinusfält) ger rökliknande slingor
           var cx = -FQ * 1.3 * Math.sin(FQ * 1.3 * py + ft * 0.75) - FQ * Math.cos(FQ * pz + ft * 0.83);
-          var cy = -FQ * 1.3 * Math.sin(FQ * 1.3 * pz - ft * 0.67) - FQ * Math.cos(FQ * px - ft * 1.17);
+          var cyy = -FQ * 1.3 * Math.sin(FQ * 1.3 * pz - ft * 0.67) - FQ * Math.cos(FQ * px - ft * 1.17);
           var cz = -FQ * 1.3 * Math.sin(FQ * 1.3 * px + ft * 0.5) - FQ * Math.cos(FQ * py + ft);
-          var fl = FLOW * h;
-          ax += cx * fl * 0.25 + px * h * 0.45;
-          ay += cy * fl * 0.25 + py * h * 0.45 + h * 0.7;  // slingorna stiger lätt, som rök
-          az += cz * fl * 0.25 + pz * h * 0.45;
+          var fl = FLOW * h * 0.25;
+          ax += cx * fl; ay += cyy * fl + h * 0.7; az += cz * fl + h * 0.3;
         }
-        // stilla vickning i vila så att formen lever
         var ph = sd * 6.283;
-        ax += Math.sin(t * 1.9 + ph) * 0.08; ay += Math.cos(t * 1.5 + ph * 1.3) * 0.08; az += Math.sin(t * 1.7 + ph * 0.7) * 0.08;
+        ax += Math.sin(t * 1.9 + ph) * 0.06; ay += Math.cos(t * 1.5 + ph * 1.3) * 0.06; az += Math.sin(t * 1.7 + ph * 0.7) * 0.06;
 
         vx = (vx + ax * dt) * damp; vy = (vy + ay * dt) * damp; vz = (vz + az * dt) * damp;
         vel[j] = vx; vel[j + 1] = vy; vel[j + 2] = vz;
         pos[j] = px + vx * dt; pos[j + 1] = py + vy * dt; pos[j + 2] = pz + vz * dt;
-        var sp = Math.sqrt(vx * vx + vy * vy + vz * vz) * 0.35;
-        speed[i] = h > sp ? h : sp;
+        var spd = Math.sqrt(vx * vx + vy * vy + vz * vz) * 0.3;
+        speed[i] = h > spd ? h : spd;
       }
 
       gl.bindBuffer(gl.ARRAY_BUFFER, bPos); gl.bufferSubData(gl.ARRAY_BUFFER, 0, pos);
