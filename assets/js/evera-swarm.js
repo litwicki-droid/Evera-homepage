@@ -26,10 +26,13 @@
  *   swarm.setLevel('user'|'evera', 0..1); // egen nivå, t.ex. från en röst-API
  *   swarm.pause(); swarm.resume();        // stoppa/starta animationen (sparar batteri)
  *   swarm.setZoom(1.4);                   // ändra storlek medan den kör
+ *   swarm.setLoop(true|false);            // slå på/av slingan
  *
  * Inställningar: EveraSwarm.mount(canvas, {
  *   shape: 'logo',    // 'logo' = Everas E, 'gear' = kugghjul (kuggarna rör sig som E:ets staplar)
  *   zoom: 1,          // >1 = större i bilden
+ *   loop: false,      // true = sprids ut och samlas om och om igen
+ *   loopHold: 5,      // sekunder som formen visas mellan varje utspridning
  *   rotate: 'spin',   // 'spin' = snurrar runt sin axel, 'swing' = pendlar fram och tillbaka
  *   spin: 0.8,        // radianer/sekund vid 'spin' (0 = stilla)
  *   swing: 62,        // grader åt varje håll vid 'swing'
@@ -121,7 +124,7 @@
     // ---- partiklar: var och en hör till en stapel och en plats i den ----
     var pos = new Float32Array(N * 3), vel = new Float32Array(N * 3), off = new Float32Array(N * 3);
     var speed = new Float32Array(N), size = new Float32Array(N), seed = new Float32Array(N);
-    var barOf = new Uint8Array(N), along = new Float32Array(N);
+    var barOf = new Uint8Array(N), along = new Float32Array(N), scat = new Float32Array(N * 3);
     if (SHAPE === 'gear') { ringA = new Float32Array(N); ringR = new Float32Array(N); ringZ = new Float32Array(N); isRing = new Uint8Array(N); }
     for (var i = 0; i < N; i++) {
       barOf[i] = i % NB;
@@ -139,8 +142,8 @@
       var u = Math.random() * 2 - 1, th = Math.random() * 6.2832, rr = Math.sqrt(1 - u * u);
       var rad = 0.78 + 0.22 * Math.sqrt(Math.random());
       off[i * 3] = Math.cos(th) * rr * rad; off[i * 3 + 1] = Math.sin(th) * rr * rad; off[i * 3 + 2] = u * rad;
-      // startar utspridda och samlas till loggan
-      pos[i * 3] = (Math.random() - 0.5) * 6; pos[i * 3 + 1] = (Math.random() - 0.5) * 4; pos[i * 3 + 2] = (Math.random() - 0.5) * 3;
+      // utspridd plats i hela rutan (-1..1, skalas mot synfältet varje bild)
+      scat[i * 3] = Math.random() * 2 - 1; scat[i * 3 + 1] = Math.random() * 2 - 1; scat[i * 3 + 2] = Math.random() * 2 - 1;
       seed[i] = Math.random();
       size[i] = 0.75 + Math.random() * 0.5;
     }
@@ -276,6 +279,11 @@
 
     // ---- simulering ----
     var userPaused = false;
+    // ---- start/slinga: utspridd -> samlas -> visas -> sprids ut -> ... ----
+    var LOOP = !!opts.loop, HOLD = opts.loopHold != null ? opts.loopHold : 5;
+    var GATHER = 1.8, SCATTER = 1.5, OUT = 0.7;      // sekunder
+    var loopPhase = 'gather', loopT = 0, spread = 1, firstFrame = true;
+    function ease(x) { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }
     var t = 0, last = performance.now(), running = true, tint = [0, 0, 0], tintAmt = 0;
     var heat = new Float32Array(N);
     var agents = {
@@ -351,6 +359,20 @@
       var lu = src.user.level * MOTION, le = src.evera.level * MOTION;
       var level = Math.max(lu, le);
       // kaos/ordning: varje ny stavelse sprider kulorna lite, mellan stavelserna drar de ihop sig
+      // slingan: röst avbryter alltid och samlar formen
+      loopT += dt;
+      if (level > 0.08) { spread = Math.max(0, spread - dt * 2.2); loopPhase = 'hold'; loopT = 0; }
+      else if (loopPhase === 'gather') { spread = 1 - ease(loopT / GATHER); if (loopT >= GATHER) { loopPhase = 'hold'; loopT = 0; } }
+      else if (loopPhase === 'hold') { spread = Math.max(0, spread - dt * 2.2); if (LOOP && loopT >= HOLD) { loopPhase = 'scatter'; loopT = 0; } }
+      else if (loopPhase === 'scatter') { spread = ease(loopT / SCATTER); if (loopT >= SCATTER) { loopPhase = 'out'; loopT = 0; } }
+      else if (loopPhase === 'out') { spread = 1; if (loopT >= OUT) { loopPhase = 'gather'; loopT = 0; } }
+      // synfältets halva höjd/bredd vid z = 0, för utspridda platser
+      var hh = CAM / F * 0.92, hw = hh * canvas.width / Math.max(1, canvas.height), sDepth = 1.6;
+      if (firstFrame) {
+        firstFrame = false;
+        for (var q0 = 0; q0 < N; q0++) { pos[q0 * 3] = scat[q0 * 3] * hw; pos[q0 * 3 + 1] = scat[q0 * 3 + 1] * hh; pos[q0 * 3 + 2] = scat[q0 * 3 + 2] * sDepth; }
+      }
+
       var pulse = (Math.max(0, lu - src.user.slow) + Math.max(0, le - src.evera.slow)) * MOTION;
       moveAgent(agents.user, lu, Math.max(0, lu - src.user.slow), dt);
       moveAgent(agents.evera, le, Math.max(0, le - src.evera.slow), dt);
@@ -448,6 +470,11 @@
         // vridning
         var rx = lx * cy0 + lz * sy0, rz = -lx * sy0 + lz * cy0;
         var ty = ly * cp - rz * sp0, tz = ly * sp0 + rz * cp, tx = rx;
+        if (spread > 0.001) {
+          // kulorna lämnar/når formen lite olika fort, så det blir ett flöde
+          var mi = ease(spread * 1.45 - sd * 0.45);
+          tx += (scat[j] * hw - tx) * mi; ty += (scat[j + 1] * hh - ty) * mi; tz += (scat[j + 2] * sDepth - tz) * mi;
+        }
 
         var px = pos[j], py = pos[j + 1], pz = pos[j + 2];
         var vx = vel[j], vy = vel[j + 1], vz = vel[j + 2];
@@ -516,6 +543,7 @@
         gl.useProgram(prog); gl.uniform1f(U.uCam, CAM);
         gl.uniform1f(U.uFogNear, CAM - 1.2); gl.uniform1f(U.uFogFar, CAM + 2.5);
       },
+      setLoop: function (on) { LOOP = !!on; if (!LOOP && loopPhase !== 'gather') { loopPhase = 'hold'; loopT = 0; } },
       pause: function () { userPaused = true; running = false; },
       resume: function () { userPaused = false; if (!running && !document.hidden) { running = true; last = performance.now(); requestAnimationFrame(step); } },
       get levels() { return { user: src.user.level, evera: src.evera.level }; }

@@ -114,7 +114,7 @@
     };
     Object.keys(MODES).forEach(function (k) {
       var m = MODES[k];
-      m.swarm = EveraSwarm.mount(document.getElementById(m.canvas), { shape: m.shape, zoom: TILE_ZOOM, count: window.innerWidth < 700 ? 5000 : 10000 });
+      m.swarm = EveraSwarm.mount(document.getElementById(m.canvas), { shape: m.shape, zoom: TILE_ZOOM, loop: true, loopHold: 5, count: window.innerWidth < 700 ? 5000 : 10000 });
     });
     if (!MODES.presence.swarm) { document.querySelector('.chooser__hint').textContent = 'Din webbläsare stöder inte WebGL2.'; return; }
     window.__modes = MODES; // för test
@@ -148,6 +148,7 @@
       Object.keys(MODES).forEach(function (k) { if (k !== key) MODES[k].swarm.pause(); });
       stageView.appendChild(document.getElementById(active.canvas));
       active.swarm.setZoom(STAGE_ZOOM);
+      active.swarm.setLoop(false);  // i mikrofonläget står formen kvar
       title.innerHTML = 'Evera<span>' + active.title + '</span>';
       chooser.hidden = true; stage.hidden = false;
       micBtn.hidden = false; holdBtn.hidden = true;
@@ -160,6 +161,7 @@
       stopMic(); stopHold();
       document.getElementById(active.view).appendChild(document.getElementById(active.canvas));
       active.swarm.setZoom(TILE_ZOOM);
+      active.swarm.setLoop(true);
       Object.keys(MODES).forEach(function (k) { MODES[k].swarm.resume(); });
       var key = active === MODES.presence ? 'presence' : 'family';
       active = null;
