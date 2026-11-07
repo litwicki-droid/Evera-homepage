@@ -93,7 +93,7 @@ Slutkontroll: samtliga 20 preview-filer fick HTTP200 och exakt SHA256-matchning 
 
 ## Röstsamtal med Evera (ElevenLabs)
 
-Valet **Evera – Your Presence** i röstvyn pratar med den riktiga Evera-agenten hos ElevenLabs (`agent_0601m6thxhtjfg3aat6ky67404m0`). All grafik är vår egen; ElevenLabs-widgeten används inte. Koden finns i `assets/js/evera-voice.js`. **For Family** är oförändrad.
+Båda valen i röstvyn, **Evera – Your Presence** (E-loggan) och **Evera – For Family** (kugghjulet), pratar med den riktiga Evera-agenten hos ElevenLabs (`agent_0601m6thxhtjfg3aat6ky67404m0`). All grafik är vår egen; ElevenLabs-widgeten används inte. Koden finns i `assets/js/evera-voice.js`.
 
 - Inget laddas från ElevenLabs när sidan öppnas. När besökaren trycker **Talk with Evera** hämtas ElevenLabs officiella klientbibliotek `@elevenlabs/client@1.30.0` från jsDelivr med SRI-hash. Därefter frågar webbläsaren om mikrofonen och samtalet kopplas upp över WebRTC.
 - Agent-ID:t är publikt och ingen hemlighet. Ingen API-nyckel finns i repot.

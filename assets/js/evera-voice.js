@@ -48,7 +48,7 @@
       lines: ['Hi, I am Evera. I am here with you, every day.', 'I listen, I remember, and I notice when something changes.']
     },
     family: {
-      title: 'For Family', shape: 'gear',
+      title: 'For Family', shape: 'gear', agentId: EVERA_AGENT_ID,
       lines: ['Hi! Here you can follow and adjust how Evera helps the people you care about.', 'You will know when something changes, and you can change the settings at any time.']
     }
   };
