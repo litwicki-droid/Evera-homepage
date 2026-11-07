@@ -90,3 +90,12 @@ Preview-körning #9 laddade upp 20 filer till https://evera.care/evera-preview-9
 Överföringen är långsam på denna tjänst eftersom sökvägar kontrolleras upprepade gånger. Låt pågående körning få slutstatus före nytt försök. Vid avbrott kan en partiell preview-mapp och tillfälliga .evera-upload-filer finnas kvar. Radera inte andra filer.
 
 Slutkontroll: samtliga 20 preview-filer fick HTTP200 och exakt SHA256-matchning när den tillfälliga 429-begränsningen släppt. Rafael gav därefter uttryckligt klartecken till första manuella livepublicering. Produktionsresultat och automatisk publicering ska verifieras separat.
+
+## Röstsamtal med Evera (ElevenLabs)
+
+Valet **Evera – Your Presence** i röstvyn pratar med den riktiga Evera-agenten hos ElevenLabs (`agent_0601m6thxhtjfg3aat6ky67404m0`). All grafik är vår egen; ElevenLabs-widgeten används inte. Koden finns i `assets/js/evera-voice.js`. **For Family** är oförändrad.
+
+- Inget laddas från ElevenLabs när sidan öppnas. När besökaren trycker **Talk with Evera** hämtas ElevenLabs officiella klientbibliotek `@elevenlabs/client@1.30.0` från jsDelivr med SRI-hash. Därefter frågar webbläsaren om mikrofonen och samtalet kopplas upp över WebRTC.
+- Agent-ID:t är publikt och ingen hemlighet. Ingen API-nyckel finns i repot.
+- Inga `overrides` skickas. Språk, röst, prompt, första meddelande och om textchatt tillåts styrs därför helt i agentens inställningar hos ElevenLabs.
+- Biblioteket hämtas från en extern CDN och ingår inte bland manifestets 22 filer. Uppdateras versionen måste SRI-hashen räknas om från npm-paketets `dist/lib.iife.js`.
