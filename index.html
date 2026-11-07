@@ -62,4 +62,18 @@
   <script src="assets/js/tilt.js" defer></script>
   <script src="assets/js/main.js" defer></script>
 
+  <!-- Röstsamtal med Evera via ElevenLabs officiella widget. Samtalet och mikrofonen startar först när besökaren själv trycker.
+       language="sv" väljer svenska om agenten har svenska som standard- eller tillåtet språk.
+       text-input="false" tar bort textfältet i just denna widget; textchatt måste även stängas av i ElevenLabs (se PR). -->
+  <elevenlabs-convai
+    agent-id="agent_0601m6thxhtjfg3aat6ky67404m0"
+    language="sv"
+    text-input="false"
+  ></elevenlabs-convai>
+  <script
+    src="https://unpkg.com/@elevenlabs/convai-widget-embed"
+    async
+    type="text/javascript"
+  ></script>
+
 </body></html>
