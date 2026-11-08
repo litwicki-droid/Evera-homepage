@@ -15,10 +15,10 @@
  * Stilar: assets/css/main.css, avsnitt 8.
  *
  * "Your Presence" pratar med den riktiga Evera-agenten hos ElevenLabs, i vår egen
- * grafik (ingen ElevenLabs-widget). Samtalet startar först när besökaren trycker
- * på "Talk with Evera"; då frågar webbläsaren om mikrofonen. ElevenLabs officiella
- * klientbibliotek (@elevenlabs/client) laddas först vid det klicket, i en låst
- * version med SRI-kontroll. Agent-ID:t är publikt och ingen hemlig nyckel.
+ * grafik (ingen ElevenLabs-widget). Samtalet startar när besökaren klickar på
+ * loggan eller kugghjulet; då frågar webbläsaren om mikrofonen. "End conversation"
+ * avslutar, "Talk with Evera" startar igen. ElevenLabs officiella klientbibliotek
+ * (@elevenlabs/client) förladdas när röstrutan öppnas, i en låst version med SRI-kontroll. Agent-ID:t är publikt och ingen hemlig nyckel.
  * Språk, röst, prompt och om textchatt tillåts styrs i agentens inställningar hos ElevenLabs.
  */
 (function () {
@@ -159,6 +159,7 @@
       var r = pill.getBoundingClientRect();
       pillSize = { w: r.width, h: r.height };
       var ok = mountSwarms();
+      loadSdk().catch(function () { /* nytt försök görs när samtalet startar */ });
       eachSwarm(function (s) { s.setZoom(TILE_ZOOM); s.setLoop(true); s.restart(); s.pause(); });
 
       // den orange rutan ligger kvar; den blå rutan växer fram under den
@@ -243,9 +244,11 @@
     holdBtn.hidden = true;
     if (window.everaSound && window.everaSound.duck) window.everaSound.duck(true);   // musiken tystnar så att mikrofonen inte hör den
     if (active.agentId) {
-      // riktigt samtal: inget startar förrän besökaren trycker på knappen
+      // riktigt samtal: besökarens klick på loggan/kugghjulet startar samtalet direkt
+      // (webbläsaren frågar om mikrofonen); knappen visar "End conversation" från start
       micBtn.hidden = true; speakBtn.hidden = true; callBtn.hidden = false;
       setCallUi('idle');
+      startCall();
     } else {
       micBtn.hidden = false; speakBtn.hidden = false; callBtn.hidden = true;
       setStatus('Starting the microphone…');
@@ -316,11 +319,11 @@
     var on = state !== 'idle';
     callBtn.classList.toggle('is-on', on);
     callBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    callBtn.textContent = state === 'idle' ? '🎙 Talk with Evera' : state === 'connecting' ? 'Cancel' : 'End conversation';
+    callBtn.textContent = state === 'idle' ? '🎙 Talk with Evera' : 'End conversation';
     callBtn.classList.remove('is-evera');
     if (msg !== undefined) setStatus(msg);
     else if (state === 'idle') setStatus('Press “Talk with Evera” to start. Your browser will ask to use the microphone.');
-    else if (state === 'connecting') setStatus('Connecting to Evera…');
+    else if (state === 'connecting') setStatus('Connecting to Evera… Allow the microphone if your browser asks.');
   }
   // röstnivåer från samtalet styr kulorna
   function voiceLevel(v) { return Math.min(1, Math.max(0, (v - 0.02) * 3.2)); }
