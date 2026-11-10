@@ -16,6 +16,7 @@
     "assets/js/main.js",
     "assets/js/sound.js",
     "assets/js/tilt.js",
+    "assets/js/vendor/libsamplerate.worklet.js",
     "assets/js/zap.js",
     "assets/video/evera-bg.mp4",
     "assets/video/evera-bg.webm",

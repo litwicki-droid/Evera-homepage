@@ -1,7 +1,10 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
   <title>Evera — Every Interaction Counts</title>
-  <meta name="claude:viewport-fit-sides" content="cover">
   <meta name="description" content="Evera is continuous presence across the care journey: care intelligence that speaks, listens, remembers and detects change.">
   <meta name="theme-color" content="#141a2b">
 
@@ -28,6 +31,8 @@
   <!-- Typsnitt laddas i förväg så att loggan inte hoppar -->
   <link rel="preload" href="assets/fonts/quicksand-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
 
   <main class="hero" aria-label="Evera">
     <!-- Bakgrunden (film + mörk ton) lutar lätt i 3D efter muspekaren, se assets/js/tilt.js -->
@@ -44,12 +49,12 @@
       <!-- Den levande loggan: E:et ritas av assets/js/evera-logo.js -->
       <h1 class="evera" aria-label="Evera" data-evera></h1>
       <!-- Klick: rutan darrar och expanderar till röstlägena, se assets/js/evera-voice.js -->
-      <button class="pill" type="button" data-text="Every Interaction Counts" aria-haspopup="dialog">Every Interaction Counts</button>
+      <button class="pill" type="button" data-text="Every Interaction Counts">Every Interaction Counts</button>
     </div>
   </main>
 
   <!-- Ljud av/på (nere till vänster). Styrs av assets/js/sound.js -->
-  <button class="sound" id="sound-toggle" type="button" aria-pressed="false" title="Ljud av/på (M)">
+  <button class="sound" id="sound-toggle" type="button" aria-pressed="false" title="Sound on/off (M)">
     <canvas class="sound__vortex" id="sound-vortex" width="34" height="16" aria-hidden="true"></canvas>
     <span id="sound-label">Sound: Off</span>
   </button>
@@ -62,4 +67,5 @@
   <script src="assets/js/tilt.js" defer></script>
   <script src="assets/js/main.js" defer></script>
 
-</body></html>
+</body>
+</html>

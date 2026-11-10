@@ -356,6 +356,7 @@ html, body {
   padding: 0 16px 18px;
 }
 .vstage__status { margin: 0; min-height: 1.4em; font-size: 13px; color: rgba(246, 243, 239, .62); }
+.vstage__note { margin: 2px 0 0; max-width: 34em; font-size: 11px; line-height: 1.4; color: rgba(246, 243, 239, .45); }
 .vstage__row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .vbtn {
   font: 500 14px/1.4 var(--font-body);

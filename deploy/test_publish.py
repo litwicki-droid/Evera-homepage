@@ -35,7 +35,7 @@ class Fake:
 class Tests(unittest.TestCase):
     def test_manifest_and_index_last(self):
         files = p.load_manifest()
-        self.assertEqual(len(files),22)
+        self.assertEqual(len(files),p.EXPECTED_FILES)
         self.assertEqual(files[-1],'index.html')
         self.assertNotIn('README.md',files)
     def test_unsafe_remote_paths(self):
@@ -64,7 +64,7 @@ class Tests(unittest.TestCase):
         p.publish(fake,'/www',p.load_manifest())
         puts=[c for c in fake.commands if c.startswith('put ')]
         renames=[c for c in fake.commands if c.startswith('rename ')]
-        self.assertEqual(len(puts),22); self.assertEqual(len(renames),22)
+        self.assertEqual(len(puts),p.EXPECTED_FILES); self.assertEqual(len(renames),p.EXPECTED_FILES)
         self.assertTrue(renames[-1].endswith('/index.html"'))
         self.assertEqual(fake.tree['/www']['unrelated.txt'],'-')
         self.assertEqual(fake.tree['/www']['other-link'],'l')
@@ -73,11 +73,12 @@ class Tests(unittest.TestCase):
     def test_local_symlink_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); (root/'deploy').mkdir()
-            files=['index.html']+['f'+str(i) for i in range(19)]
+            files=['index.html']+['f'+str(i) for i in range(p.EXPECTED_FILES-1)]
             (root/'deploy/manifest.json').write_text(json.dumps({'files':files}))
             for name in files: (root/name).write_text('x')
+            p.load_manifest(root)   # giltigt manifest med rätt antal filer ska godtas
             (root/'f0').unlink(); (root/'f0').symlink_to(root/'index.html')
-            with self.assertRaises(p.DeployError): p.load_manifest(root)
+            with self.assertRaisesRegex(p.DeployError,'symboliska länkar'): p.load_manifest(root)
     def test_subprocess_security_and_timeout(self):
         env={'SFTP_HOST':'sftp.example.test','SFTP_USER':'evera','SFTP_PASSWORD':'test-only-secret',
              'SFTP_KNOWN_HOSTS':'sftp.example.test ssh-ed25519 AAAA-test-placeholder'}
@@ -103,8 +104,9 @@ class Tests(unittest.TestCase):
         denied=subprocess.run(['python3',script,'Host authenticity?'],env=env,capture_output=True,text=True)
         self.assertNotEqual(denied.returncode,0); self.assertEqual(denied.stdout,'')
 
-if __name__ == '__main__': unittest.main()
 
 class OneComFormat(unittest.TestCase):
     def test_unknown_link_count(self):
         self.assertEqual(p.parse_listing("drwxr-xr-x ? 0 0 4096 Nov 02 14:00 /."), {"/.": "d"})
+
+if __name__ == '__main__': unittest.main()

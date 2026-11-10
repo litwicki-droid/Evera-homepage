@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exactly 22 static files, SFTP subsystem only, no remote shell commands."""
+"""Exactly 23 static files, SFTP subsystem only, no remote shell commands."""
 import argparse
 import json
 import os
@@ -30,7 +30,7 @@ def components(path):
     return parts
 
 # Medveten spärr: ändras filuppsättningen ska både manifestet och detta antal granskas.
-EXPECTED_FILES = 22
+EXPECTED_FILES = 23
 
 def load_manifest(root=ROOT):
     files = json.loads((root / 'deploy/manifest.json').read_text())['files']
