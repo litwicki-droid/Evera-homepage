@@ -24,6 +24,13 @@
 (function () {
   'use strict';
 
+  // Mikrofonen fungerar bara på säkra (https) sidor. Den som kommer via http://evera.care
+  // skickas därför till https-adressen, annars kan Evera aldrig höra besökaren.
+  if (location.protocol === 'http:' && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+    location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+    return;
+  }
+
   var pill = document.querySelector('.pill');
   var hero = document.querySelector('.hero');
   if (!pill || !hero || !window.EveraSwarm) return;
@@ -342,18 +349,63 @@
   }
   function callErrorText(err) {
     var n = err && (err.name || ''), m = String(err && err.message || err || '');
+    var code = ' (' + (n && n !== 'Error' ? n : m.slice(0, 60) || 'unknown') + ')';   // kort felkod för felsökning
+    if (n === 'NoMicSupport')
+      return 'This browser cannot use the microphone here. Open evera.care in Safari or Chrome (not inside another app) and try again.';
     if (n === 'NotAllowedError' || n === 'SecurityError' || /permission|not allowed|denied/i.test(m))
-      return 'Evera needs the microphone. Allow microphone access in your browser and try again.';
+      return 'Evera needs the microphone. Allow microphone access for evera.care (in iPhone: Settings › Safari › Microphone) and try again.' + code;
     if (n === 'NotFoundError' || n === 'NotReadableError' || /device not found|could not start audio/i.test(m))
-      return 'No working microphone was found. Connect a microphone and try again.';
-    return 'Could not connect to Evera right now. Please try again in a moment.';
+      return 'No working microphone was found, or another app is using it. Close other calls and try again.' + code;
+    if (/401|authentication/i.test(m))
+      return 'Evera is not open for calls from this website yet.' + code;
+    return 'Could not connect to Evera right now. Please try again in a moment.' + code;
+  }
+
+  // Mikrofonen och ljudet måste startas direkt i besökarens tryck, annars blockerar
+  // mobila webbläsare (särskilt iPhone) dem. ElevenLabs-biblioteket frågar själv först
+  // efter flera nätverkssteg, så vi frågar här, i själva trycket, och håller mikrofonen
+  // öppen tills samtalet är uppkopplat.
+  function requestMicInGesture() {
+    var md = navigator.mediaDevices;
+    if (!window.isSecureContext || !md || !md.getUserMedia) {
+      var e = new Error('no mediaDevices'); e.name = 'NoMicSupport';
+      return Promise.reject(e);
+    }
+    try {
+      return md.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    } catch (err) { return Promise.reject(err); }
+  }
+  var unlockCtx = null;
+  function unlockAudioInGesture() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!unlockCtx) unlockCtx = new AC();
+      var buf = unlockCtx.createBuffer(1, 1, 22050), src = unlockCtx.createBufferSource();
+      src.buffer = buf; src.connect(unlockCtx.destination); src.start(0);
+      if (unlockCtx.state === 'suspended') unlockCtx.resume();
+    } catch (e) { /* ljudupplåsning är bara en hjälp */ }
+  }
+  function stopStream(stream) {
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
   }
 
   function startCall() {
     if (!active || !active.agentId || callState !== 'idle') return;
     var mode = active, seq = ++callSeq;
     setCallUi('connecting');
-    loadSdk().then(function (sdk) {
+    // båda måste anropas synkront i trycket (före första await)
+    var micReady = requestMicInGesture();
+    unlockAudioInGesture();
+    var heldMic = null;
+    micReady.then(function (stream) {
+      heldMic = stream;
+      if (seq !== callSeq) { stopStream(heldMic); heldMic = null; }
+    }, function () {});
+    function releaseMic() { stopStream(heldMic); heldMic = null; }
+
+    Promise.all([micReady, loadSdk()]).then(function (res) {
+      var sdk = res[1];
       if (seq !== callSeq) return null;
       return sdk.Conversation.startSession({
         agentId: mode.agentId,
@@ -379,11 +431,14 @@
         }
       });
     }).then(function (conv) {
+      releaseMic();   // samtalet har nu sin egen mikrofon
       if (!conv) return;
       if (seq !== callSeq) { conv.endSession(); return; }   // besökaren avbröt under uppkopplingen
       call = conv;
       if (!levelRaf) levelRaf = requestAnimationFrame(pumpLevels);
     }).catch(function (err) {
+      releaseMic();
+      if (window.console) console.warn('[Evera] samtalet kunde inte starta:', err);
       if (seq !== callSeq) return;
       call = null; clearLevels();
       setCallUi('idle', callErrorText(err));

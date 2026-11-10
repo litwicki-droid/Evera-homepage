@@ -99,3 +99,5 @@ Båda valen i röstvyn, **Evera – Your Presence** (E-loggan) och **Evera – F
 - Agent-ID:t är publikt och ingen hemlighet. Ingen API-nyckel finns i repot.
 - Inga `overrides` skickas. Språk, röst, prompt, första meddelande och om textchatt tillåts styrs därför helt i agentens inställningar hos ElevenLabs.
 - Biblioteket hämtas från en extern CDN och ingår inte bland manifestets 22 filer. Uppdateras versionen måste SRI-hashen räknas om från npm-paketets `dist/lib.iife.js`.
+- Mikrofonen begärs direkt i besökarens tryck och hålls öppen tills samtalet är uppkopplat, och ljudet låses upp i samma tryck. Mobila webbläsare, särskilt på iPhone, blockerar annars mikrofon och ljud som startas senare.
+- Mikrofonen fungerar bara på https. `evera-voice.js` skickar därför besökare från `http://evera.care` vidare till https. Slå också gärna på tvingad https (HTTPS-omdirigering) i one.com:s kontrollpanel.
