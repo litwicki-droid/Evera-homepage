@@ -1,0 +1,21 @@
+# evera.care managed by deploy/publish.py
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteRule (^|/)\.(?!well-known/) - [F]
+RewriteRule \.(md|map|ts|tsx|zip|tar|gz|bak|old|orig|swp|log|sql|py|sh|yml|yaml|lock|template)$ - [F,NC]
+</IfModule>
+<IfModule mod_headers.c>
+Header always set Strict-Transport-Security "max-age=86400" "expr=%{HTTPS} == 'on' || %{HTTP:X-Forwarded-Proto} == 'https'"
+Header always set X-Frame-Options "DENY"
+Header always set X-Content-Type-Options "nosniff"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+Header always set Permissions-Policy "microphone=(self), screen-wake-lock=(self), autoplay=(self), camera=(), geolocation=(), display-capture=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), midi=(), accelerometer=(), gyroscope=(), magnetometer=(), browsing-topics=()"
+Header always set Content-Security-Policy-Report-Only "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.30.0/dist/lib.iife.js 'wasm-unsafe-eval'; style-src 'self' 'sha256-pKR3UmZzt8u0ZndeOWmFFteGfzCPnJT9HyQ+X/4ZDHU='; img-src 'self' data:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://api.elevenlabs.io wss://api.elevenlabs.io; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+<Files "signatur.html">
+Header always unset Content-Security-Policy
+Header always unset Content-Security-Policy-Report-Only
+</Files>
+</IfModule>

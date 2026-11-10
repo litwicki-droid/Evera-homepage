@@ -1,0 +1,51 @@
+# evera.care managed by deploy/publish.py
+#
+# Källa till webbrotens .htaccess. Byggs till dist/.htaccess av deploy/build.mjs, som
+# tar bort kommentarerna (utom första raden, som publish.py känner igen filen på) och
+# fyller i {{...}}. Alla direktiv är av klassen FileInfo (mod_rewrite, mod_headers),
+# så att filen fungerar med en snäv AllowOverride.
+#
+# Testa alltid i en preview-mapp först: en trasig .htaccess ger fel 500 för hela mappen.
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# 1. http -> https med 301, sökväg och frågesträng följer med. Bakom en TLS-terminerande
+#    proxy syns https bara i X-Forwarded-Proto, därför kontrolleras båda.
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# 2. Filer som inte hör hemma på en publik webbplats ska aldrig lämnas ut, även om de
+#    råkar ligga kvar på servern (dokumentation, källkartor, säkerhetskopior, källkod).
+RewriteRule (^|/)\.(?!well-known/) - [F]
+RewriteRule \.(md|map|ts|tsx|zip|tar|gz|bak|old|orig|swp|log|sql|py|sh|yml|yaml|lock|template)$ - [F,NC]
+</IfModule>
+
+<IfModule mod_headers.c>
+# 3. HSTS, bara på https-svar. Ingen includeSubDomains (underdomänerna är inte inventerade)
+#    och ingen preload. Börjar med ett dygn; höj till 31536000 när https har fungerat en tid.
+Header always set Strict-Transport-Security "max-age={{HSTS_MAX_AGE}}" "expr=%{HTTPS} == 'on' || %{HTTP:X-Forwarded-Proto} == 'https'"
+
+# 4. Sidan ska inte kunna bäddas in i en ram på någon annan webbplats.
+Header always set X-Frame-Options "DENY"
+Header always set X-Content-Type-Options "nosniff"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# 5. Bara det sidan använder: mikrofon (röstsamtalet), skärmlås av (ElevenLabs-klienten
+#    under samtal), uppspelning (bakgrundsfilm och musik). Allt annat är avstängt.
+Header always set Permissions-Policy "microphone=(self), screen-wake-lock=(self), autoplay=(self), camera=(), geolocation=(), display-capture=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), midi=(), accelerometer=(), gyroscope=(), magnetometer=(), browsing-topics=()"
+
+# 6. Content-Security-Policy. Läget (Report-Only eller skarp) väljs med CSP_MODE i
+#    deploy/build.mjs. Skript: egna filer samt exakt den låsta ElevenLabs-klienten
+#    (som dessutom har SRI-hash i evera-voice.js). 'wasm-unsafe-eval' behövs för
+#    omsamplaren (WebAssembly) i ljudtråden. Stilmallens hash räknas ut vid bygget.
+Header always set {{CSP_HEADER}} "{{CSP_POLICY}}"
+
+# signatur.html (e-postsignaturen) ligger utanför det här repot och har egen inbäddad
+# kod; den undantas från policyn tills den har anpassats.
+<Files "signatur.html">
+Header always unset Content-Security-Policy
+Header always unset Content-Security-Policy-Report-Only
+</Files>
+</IfModule>

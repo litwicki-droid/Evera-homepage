@@ -50,6 +50,12 @@
   };
   // Omsamplaren som biblioteket annars hämtar från jsDelivr utan hashkontroll; vi lägger den på egen server.
   var LIBSAMPLERATE_PATH = new URL('assets/js/vendor/libsamplerate.worklet.js', document.baseURI).href;
+  // Bibliotekets två ljudprocessorer (oförändrade kopior ur npm-paketet, samma version som ELEVENLABS_SDK).
+  // Från egen server slipper sidans Content-Security-Policy tillåta blob:- och data:-skript.
+  var WORKLET_PATHS = {
+    rawAudioProcessor: new URL('assets/js/vendor/rawAudioProcessor.js', document.baseURI).href,
+    audioConcatProcessor: new URL('assets/js/vendor/audioConcatProcessor.js', document.baseURI).href
+  };
   var CONNECT_TIMEOUT_MS = 20000;               // ger upp om uppkopplingen hänger
 
   var MODES = {
@@ -75,6 +81,10 @@
   var hint = el('p', 'vembed__hint'); hint.textContent = 'Choose how you want to talk with Evera';
   var options = el('div', 'vembed__options');
   chooser.appendChild(options);   // ingen rubrik; hint visas bara om WebGL2 saknas
+  // Syns innan samtalet startar: ett tryck på loggan eller kugghjulet öppnar mikrofonen direkt.
+  var note = el('p', 'vembed__note');
+  note.textContent = 'Choosing one starts a voice call. Your voice is sent to ElevenLabs, our speech service, so that Evera can hear and answer you.';
+  chooser.appendChild(note);
 
   var stage = el('div', 'vembed__stage', { hidden: '' });
   stage.innerHTML =
@@ -375,6 +385,7 @@
         agentId: mode.agentId,
         connectionType: 'websocket',            // samma som ElevenLabs egen widget använder som standard
         libsampleratePath: LIBSAMPLERATE_PATH,
+        workletPaths: WORKLET_PATHS,
         onConnect: function () {
           if (seq !== callSeq) return;
           clearTimeout(timer);

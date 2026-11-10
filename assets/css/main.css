@@ -301,6 +301,8 @@ html, body {
   gap: clamp(10px, 2vh, 22px);
   padding: 20px 16px;
 }
+/* upplysningen om ElevenLabs: längst ned i rutan, flyttar inte valen */
+.vembed__note { position: absolute; left: 16px; right: 16px; bottom: 12px; margin: 0 auto; max-width: 40em; font-size: 11px; line-height: 1.4; color: rgba(246, 243, 239, .55); }
 .vembed__hint { margin: 0; color: rgba(246, 243, 239, .62); font-size: 14px; letter-spacing: .02em; }
 .vembed__options { display: flex; gap: clamp(40px, 14vw, 240px); justify-content: center; width: 100%; }   /* luft i mitten */
 

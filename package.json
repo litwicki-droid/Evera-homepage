@@ -1,0 +1,15 @@
+{
+  "name": "evera-homepage-build",
+  "private": true,
+  "description": "Byggverktyg för evera.care: tar bort kommentarer ur de publika filerna. Används bara lokalt, aldrig på servern.",
+  "type": "module",
+  "scripts": {
+    "build": "node deploy/build.mjs",
+    "check": "node deploy/build.mjs --check"
+  },
+  "devDependencies": {
+    "csso": "5.0.5",
+    "html-minifier-terser": "7.2.0",
+    "terser": "5.51.2"
+  }
+}
