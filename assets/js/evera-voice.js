@@ -349,7 +349,7 @@
   }
   function callErrorText(err) {
     var n = err && (err.name || ''), m = String(err && err.message || err || '');
-    var code = ' (' + (n && n !== 'Error' ? n : m.slice(0, 60) || 'unknown') + ')';   // kort felkod för felsökning
+    var code = ' (' + [n !== 'Error' ? n : '', m.slice(0, 70)].filter(Boolean).join(': ') + ')';   // kort felkod för felsökning
     if (n === 'NoMicSupport')
       return 'This browser cannot use the microphone here. Open evera.care in Safari or Chrome (not inside another app) and try again.';
     if (n === 'NotAllowedError' || n === 'SecurityError' || /permission|not allowed|denied/i.test(m))
@@ -361,10 +361,9 @@
     return 'Could not connect to Evera right now. Please try again in a moment.' + code;
   }
 
-  // Mikrofonen och ljudet måste startas direkt i besökarens tryck, annars blockerar
-  // mobila webbläsare (särskilt iPhone) dem. ElevenLabs-biblioteket frågar själv först
-  // efter flera nätverkssteg, så vi frågar här, i själva trycket, och håller mikrofonen
-  // öppen tills samtalet är uppkopplat.
+  // Mikrofontillståndet frågas direkt i besökarens tryck, så att frågan säkert visas på
+  // mobilen. Strömmen stängs genast igen: ElevenLabs-biblioteket öppnar sin egen, och
+  // flera samtidiga mikrofoner ger fel i Safari på iPhone.
   function requestMicInGesture() {
     var md = navigator.mediaDevices;
     if (!window.isSecureContext || !md || !md.getUserMedia) {
@@ -372,19 +371,8 @@
       return Promise.reject(e);
     }
     try {
-      return md.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      return md.getUserMedia({ audio: true });   // samma enkla anrop som ElevenLabs dokumentation
     } catch (err) { return Promise.reject(err); }
-  }
-  var unlockCtx = null;
-  function unlockAudioInGesture() {
-    try {
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      if (!unlockCtx) unlockCtx = new AC();
-      var buf = unlockCtx.createBuffer(1, 1, 22050), src = unlockCtx.createBufferSource();
-      src.buffer = buf; src.connect(unlockCtx.destination); src.start(0);
-      if (unlockCtx.state === 'suspended') unlockCtx.resume();
-    } catch (e) { /* ljudupplåsning är bara en hjälp */ }
   }
   function stopStream(stream) {
     if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
@@ -394,22 +382,21 @@
     if (!active || !active.agentId || callState !== 'idle') return;
     var mode = active, seq = ++callSeq;
     setCallUi('connecting');
-    // båda måste anropas synkront i trycket (före första await)
-    var micReady = requestMicInGesture();
-    unlockAudioInGesture();
-    var heldMic = null;
-    micReady.then(function (stream) {
-      heldMic = stream;
-      if (seq !== callSeq) { stopStream(heldMic); heldMic = null; }
-    }, function () {});
-    function releaseMic() { stopStream(heldMic); heldMic = null; }
+    // måste anropas synkront i trycket (före första await). Ljudet på iPhone låses upp av
+    // ElevenLabs-biblioteket självt i samma tryck (det laddas när röstrutan öppnas).
+    var micReady = requestMicInGesture().then(function (stream) { stopStream(stream); }, function (err) {
+      // nekad eller saknad mikrofon: stoppa här. Andra fel: låt ElevenLabs-biblioteket försöka själv.
+      var n = err && err.name;
+      if (n === 'NotAllowedError' || n === 'NotFoundError' || n === 'NoMicSupport' || n === 'SecurityError') throw err;
+      if (window.console) console.warn('[Evera] första mikrofonfrågan misslyckades, försöker igen via ElevenLabs:', err);
+    });
 
     Promise.all([micReady, loadSdk()]).then(function (res) {
       var sdk = res[1];
       if (seq !== callSeq) return null;
       return sdk.Conversation.startSession({
         agentId: mode.agentId,
-        connectionType: 'webrtc',
+        connectionType: 'websocket',   // samma som ElevenLabs egen widget använder som standard
         onConnect: function () {
           if (seq !== callSeq) return;
           setCallUi('connected', 'Connected. Go ahead, Evera is listening.');
@@ -431,13 +418,11 @@
         }
       });
     }).then(function (conv) {
-      releaseMic();   // samtalet har nu sin egen mikrofon
       if (!conv) return;
       if (seq !== callSeq) { conv.endSession(); return; }   // besökaren avbröt under uppkopplingen
       call = conv;
       if (!levelRaf) levelRaf = requestAnimationFrame(pumpLevels);
     }).catch(function (err) {
-      releaseMic();
       if (window.console) console.warn('[Evera] samtalet kunde inte starta:', err);
       if (seq !== callSeq) return;
       call = null; clearLevels();
