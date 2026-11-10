@@ -1,0 +1,136 @@
+{
+  "cspMode": "report-only",
+  "hstsMaxAge": 86400,
+  "files": {
+    ".htaccess": {
+      "source": "deploy/htaccess.template",
+      "sourceSha256": "ec3eb7319c7601065daa38eeef89791088114df941d5f844bb0d778000b7f17d",
+      "distSha256": "c9a30fc9ae1eec63121a7a231e6c3cc8b9fee53c450e6475c80fa791dde3d900"
+    },
+    "assets/css/main.css": {
+      "source": "assets/css/main.css",
+      "sourceSha256": "5af7ddb19082ea95b76dc0da610c167dc2ca41ddc2eed64dc6ceb7c14ebe71b2",
+      "distSha256": "3ece76287df0a68b655000d3f02ceb8c4928504b5bc62dbe24561671db84cf15"
+    },
+    "assets/fonts/inter-500.woff2": {
+      "source": "assets/fonts/inter-500.woff2",
+      "sourceSha256": "b0e7558f4710a1e255b93e3deefe3aebb19f3bb41c150f685a74d3b1a1c79e87",
+      "distSha256": "b0e7558f4710a1e255b93e3deefe3aebb19f3bb41c150f685a74d3b1a1c79e87"
+    },
+    "assets/fonts/quicksand-700.woff2": {
+      "source": "assets/fonts/quicksand-700.woff2",
+      "sourceSha256": "25a7998fc245a7537c437d85e6f8cb4389468042ffe2ffcf7a1cdaf94e94d50e",
+      "distSha256": "25a7998fc245a7537c437d85e6f8cb4389468042ffe2ffcf7a1cdaf94e94d50e"
+    },
+    "assets/icons/apple-touch-icon.png": {
+      "source": "assets/icons/apple-touch-icon.png",
+      "sourceSha256": "ed7a42b6c55502a38c5bcf0a780ba5999497698d3cd1a8406aec2ae228791d44",
+      "distSha256": "ed7a42b6c55502a38c5bcf0a780ba5999497698d3cd1a8406aec2ae228791d44"
+    },
+    "assets/icons/favicon-32.png": {
+      "source": "assets/icons/favicon-32.png",
+      "sourceSha256": "1308f408d4b3c0da91f753a707770a5b2bf5f6122d72b904909c31f00712f236",
+      "distSha256": "1308f408d4b3c0da91f753a707770a5b2bf5f6122d72b904909c31f00712f236"
+    },
+    "assets/icons/favicon.svg": {
+      "source": "assets/icons/favicon.svg",
+      "sourceSha256": "965a41b918d2fcc6945eaf289edfee4c1cbab76648a548a79b711c8b2b968e8f",
+      "distSha256": "965a41b918d2fcc6945eaf289edfee4c1cbab76648a548a79b711c8b2b968e8f"
+    },
+    "assets/icons/icon-192.png": {
+      "source": "assets/icons/icon-192.png",
+      "sourceSha256": "5328e2879f5254a279ac9492398ca1cc4d94e0ede8f9113d177ac218ed88edbb",
+      "distSha256": "5328e2879f5254a279ac9492398ca1cc4d94e0ede8f9113d177ac218ed88edbb"
+    },
+    "assets/icons/icon-512.png": {
+      "source": "assets/icons/icon-512.png",
+      "sourceSha256": "413bcfd6478d308e0f56e624e43d6724150a962102208156aab8b927d8ad2946",
+      "distSha256": "413bcfd6478d308e0f56e624e43d6724150a962102208156aab8b927d8ad2946"
+    },
+    "assets/images/evera-bg-poster.jpg": {
+      "source": "assets/images/evera-bg-poster.jpg",
+      "sourceSha256": "2b4774ee0160a5a8052ba39a57f83772a2c16a7f092cda3fd4b841c53f991ad5",
+      "distSha256": "2b4774ee0160a5a8052ba39a57f83772a2c16a7f092cda3fd4b841c53f991ad5"
+    },
+    "assets/images/og-image.jpg": {
+      "source": "assets/images/og-image.jpg",
+      "sourceSha256": "654911e36762d24f33d0e6328b833e99281a23789a4a04fad8dc6904d8354947",
+      "distSha256": "654911e36762d24f33d0e6328b833e99281a23789a4a04fad8dc6904d8354947"
+    },
+    "assets/js/evera-logo.js": {
+      "source": "assets/js/evera-logo.js",
+      "sourceSha256": "8fbebbaa15d027a3a85a66a31cabf5e50b063ccfcb63b41d0fda123c13ffb124",
+      "distSha256": "72e1c3a887773d93e6109288b48a32f135a9451484bf107ef413f4e1e762dc4d"
+    },
+    "assets/js/evera-swarm.js": {
+      "source": "assets/js/evera-swarm.js",
+      "sourceSha256": "8b2089094376b256348cf7b19f77a931c2ba5c5f69bee1988d3284b250c1d05a",
+      "distSha256": "8de2f5c8977e1997556092285baf847b3fa2e42925b67759937428a268b3f5c0"
+    },
+    "assets/js/evera-voice.js": {
+      "source": "assets/js/evera-voice.js",
+      "sourceSha256": "6226c3ae9aae684f263e4c24cf4f97270fa9bdc252b133231b28a2444042a96a",
+      "distSha256": "e1e799640d120714c43038664a5742e86c5ccbfa6e6c700d61ef6e5b3ed02ea4"
+    },
+    "assets/js/main.js": {
+      "source": "assets/js/main.js",
+      "sourceSha256": "1210802b022c75efe4318a14db49cac9f87722ea6645f92fd17f067b9524c892",
+      "distSha256": "dfa5d5e3ab00c145aebb4e86b2896c5ba8dfb4790e6d23fa496e7f7b6411a903"
+    },
+    "assets/js/sound.js": {
+      "source": "assets/js/sound.js",
+      "sourceSha256": "f2f821d6f38fe6be80497ab012160d6b6825056d526d76086a6a5194908c561b",
+      "distSha256": "9e1d8bd0dcbb1b67e2b51f1e2f87930f94cccb1adaa0d267aef21a232c84f1c8"
+    },
+    "assets/js/tilt.js": {
+      "source": "assets/js/tilt.js",
+      "sourceSha256": "ccc96906fa6acaf95bd576965ab2f7c8f9c73e808d75a0b92bc5101bbe9c93e4",
+      "distSha256": "290cc3e0dfc1395af79ecf71438d4ad02aa31547159217863627a363f5f21be0"
+    },
+    "assets/js/vendor/audioConcatProcessor.js": {
+      "source": "assets/js/vendor/audioConcatProcessor.js",
+      "sourceSha256": "af57da6035f0119aaa3ba227bb3197d275a6672521f549f74f055b43b3585a9e",
+      "distSha256": "af57da6035f0119aaa3ba227bb3197d275a6672521f549f74f055b43b3585a9e"
+    },
+    "assets/js/vendor/libsamplerate.worklet.js": {
+      "source": "assets/js/vendor/libsamplerate.worklet.js",
+      "sourceSha256": "c6f9dce73a1bf55a60fd9b929c363cff9d7e78786a923c1d79a1a2edec451541",
+      "distSha256": "c6f9dce73a1bf55a60fd9b929c363cff9d7e78786a923c1d79a1a2edec451541"
+    },
+    "assets/js/vendor/rawAudioProcessor.js": {
+      "source": "assets/js/vendor/rawAudioProcessor.js",
+      "sourceSha256": "6731b766e9e6176d56b9c6964975dd7dd045db88ce3b2b0b787f5fbeb9f1325d",
+      "distSha256": "6731b766e9e6176d56b9c6964975dd7dd045db88ce3b2b0b787f5fbeb9f1325d"
+    },
+    "assets/js/zap.js": {
+      "source": "assets/js/zap.js",
+      "sourceSha256": "be8d0e8f77ac16ab280c40895660ec073b3b5e049634fa545f134000dc7085d2",
+      "distSha256": "c213910869469cd5fe1de5a7cfd4ceebfe836e61b01a84761a81e9751151a7f1"
+    },
+    "assets/video/evera-bg.mp4": {
+      "source": "assets/video/evera-bg.mp4",
+      "sourceSha256": "6f7d1030a9f030d6e5a00293aa2dcddad541285cbebcf432d71de5952dbeddc8",
+      "distSha256": "6f7d1030a9f030d6e5a00293aa2dcddad541285cbebcf432d71de5952dbeddc8"
+    },
+    "assets/video/evera-bg.webm": {
+      "source": "assets/video/evera-bg.webm",
+      "sourceSha256": "b83ca0e337074c15a8906d722b9b3efcf5ff43bf4b46714f175b572bb5d9cc83",
+      "distSha256": "b83ca0e337074c15a8906d722b9b3efcf5ff43bf4b46714f175b572bb5d9cc83"
+    },
+    "favicon.ico": {
+      "source": "favicon.ico",
+      "sourceSha256": "a0367cf712d2ef5b32eee7ed7a496bce3c4b479c7958b72181b8eb5921c77486",
+      "distSha256": "a0367cf712d2ef5b32eee7ed7a496bce3c4b479c7958b72181b8eb5921c77486"
+    },
+    "index.html": {
+      "source": "index.html",
+      "sourceSha256": "caf656ea75bf613f5fa545b53904bb48065864135b70e6077cd155fb85557383",
+      "distSha256": "0cdd566bca561c9748264c76fbfaafd95372d6421dee1221114a3a4d0b7c8633"
+    },
+    "site.webmanifest": {
+      "source": "site.webmanifest",
+      "sourceSha256": "6640ca28999f8368ad3ca336174894364aa795e6721f665aea6f19f17ceb3e20",
+      "distSha256": "6640ca28999f8368ad3ca336174894364aa795e6721f665aea6f19f17ceb3e20"
+    }
+  }
+}

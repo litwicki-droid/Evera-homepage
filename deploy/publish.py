@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Exactly 22 static files, SFTP subsystem only, no remote shell commands."""
+"""Exactly 26 built files from dist/, SFTP subsystem only, no remote shell commands."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -30,9 +31,32 @@ def components(path):
     return parts
 
 # Medveten spärr: ändras filuppsättningen ska både manifestet och detta antal granskas.
-EXPECTED_FILES = 22
+EXPECTED_FILES = 26
+# Första raden i en .htaccess som det här verktyget har byggt. En .htaccess utan den raden
+# är någon annans (t.ex. webbhotellets eller en äldre handuppladdad) och skrivs aldrig över.
+HTACCESS_MARKER = '# evera.care managed by deploy/publish.py'
+FORBIDDEN = re.compile(r'\.(map|ts|tsx)\Z', re.IGNORECASE)
+
+def sha256(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def plain_file(root, name):
+    path = root
+    for part in name.split('/'):
+        path = path / part
+        if path.is_symlink():
+            fail('Lokala symboliska länkar tillåts inte: ' + name)
+    if not path.is_file():
+        fail('Fil saknas: ' + name)
+    return path
 
 def load_manifest(root=ROOT):
+    """Manifestets filer, kontrollerade mot den byggda kopian i dist/.
+
+    Det som publiceras är dist/ (kommentarer borttagna av deploy/build.mjs), aldrig
+    källfilerna. deploy/dist-lock.json binder varje dist-fil till sin källa med SHA-256.
+    Har källan ändrats utan nytt bygge, eller dist/ ändrats för hand, stoppas publiceringen.
+    """
     files = json.loads((root / 'deploy/manifest.json').read_text())['files']
     if len(files) != EXPECTED_FILES or len(set(files)) != EXPECTED_FILES or 'index.html' not in files:
         fail('Manifestet måste innehålla exakt %d unika filer inklusive index.html.' % EXPECTED_FILES)
@@ -40,13 +64,25 @@ def load_manifest(root=ROOT):
         parts = name.split('/')
         if name.startswith('/') or any(not SAFE.fullmatch(p) or p in ('.','..') or p.startswith('-') for p in parts):
             fail('Ogiltig sökväg i manifestet.')
-        path = root
-        for part in parts:
-            path = path / part
-            if path.is_symlink():
-                fail('Lokala symboliska länkar tillåts inte: ' + name)
-        if not path.is_file():
-            fail('Manifestfil saknas: ' + name)
+        if FORBIDDEN.search(name):
+            fail('Källkartor och TypeScript-filer publiceras inte: ' + name)
+    dist = root / 'dist'
+    if dist.is_symlink() or not dist.is_dir():
+        fail('dist/ saknas. Bygg först: npm ci --ignore-scripts && npm run build')
+    lock = json.loads((root / 'deploy/dist-lock.json').read_text())['files']
+    if set(lock) != set(files):
+        fail('deploy/dist-lock.json stämmer inte med manifestet. Bygg om: npm run build')
+    for name in files:
+        entry = lock[name]
+        if entry['source'] != ('deploy/htaccess.template' if name == '.htaccess' else name):
+            fail('Oväntad källa i dist-lock.json: ' + name)
+        if sha256(plain_file(root, entry['source'])) != entry['sourceSha256']:
+            fail('Källfilen har ändrats sedan senaste bygget. Bygg om: npm run build (' + name + ')')
+        if sha256(plain_file(dist, name)) != entry['distSha256']:
+            fail('dist/ stämmer inte med senaste bygget. Bygg om: npm run build (' + name + ')')
+    built = sorted(str(PurePosixPath(*path.relative_to(dist).parts)) for path in dist.rglob('*') if not path.is_dir())
+    if built != sorted(files):
+        fail('dist/ innehåller filer som inte står i manifestet.')
     return sorted(files, key=lambda p: (p == 'index.html', p))
 
 def parse_listing(output):
@@ -84,6 +120,7 @@ class SFTP:
         known = os.environ.get('SFTP_KNOWN_HOSTS', '')
         if not known.strip():
             fail('SFTP_KNOWN_HOSTS saknas. Hämta betrodd värdnyckel separat.')
+        self.temp = Path(temp)
         known_path = Path(temp) / 'known_hosts'
         known_path.write_text(known + '\n')
         known_path.chmod(0o600)
@@ -134,6 +171,16 @@ class SFTP:
             normalized[name] = kind
         return normalized
 
+    def htaccess_is_ours(self, remote):
+        # Läser bara: hämtar filen till den privata tillfälliga mappen och jämför första raden.
+        local = self.temp / ('remote-htaccess-' + uuid.uuid4().hex)
+        self.run(['get "' + remote + '" "' + str(local) + '"'])
+        try:
+            first = local.read_bytes().split(b'\n', 1)[0].rstrip(b'\r')
+        finally:
+            local.unlink(missing_ok=True)
+        return first == HTACCESS_MARKER.encode()
+
     def ensure_dir(self, path, create=False):
         current = '/'
         for part in components(path):
@@ -163,9 +210,20 @@ class SFTP:
                     fail('Skyddad fjärrsökväg (länk eller fel filtyp): ' + name)
                 current += '/' + part
 
-def publish(client, target, files, source=ROOT):
+def guard_htaccess(client, target, files):
+    # En befintlig .htaccess som inte kommer härifrån kan innehålla serverinställningar
+    # som sajten behöver. Den ska granskas och slås ihop för hand, aldrig skrivas över.
+    if '.htaccess' in files and client.listing(target).get('.htaccess') == '-':
+        if not client.htaccess_is_ours(target + '/.htaccess'):
+            fail('Servern har redan en .htaccess som inte kommer från det här verktyget. '
+                 'Den skrivs inte över. Spara en kopia, för över det som ska behållas till '
+                 'deploy/htaccess.template och ta sedan bort eller byt namn på serverns fil.')
+
+def publish(client, target, files, source=None):
+    source = source or ROOT / 'dist'
     client.ensure_dir(target)
     client.validate_files(target, files)
+    guard_htaccess(client, target, files)
     token = uuid.uuid4().hex
     for name in files:
         parent, _, basename = name.rpartition('/')
@@ -195,7 +253,7 @@ def main():
     args = parser.parse_args()
     files = load_manifest()
     if args.dry_run:
-        print('Lokal kontroll OK: exakt %d ordinarie filer.' % EXPECTED_FILES + ' index.html publiceras sist. Ingen nätverksanslutning.')
+        print('Lokal kontroll OK: exakt %d byggda filer i dist/ som stämmer med källan.' % EXPECTED_FILES + ' index.html publiceras sist. Ingen nätverksanslutning.')
         return
     if args.mode == 'production':
         if os.environ.get('PRODUCTION_ENABLED') != 'true' or os.environ.get('CONFIRM_PRODUCTION') != 'PUBLISH evera.care':
@@ -233,6 +291,7 @@ def main():
         client.ensure_dir(remote)
         if args.mode == 'check':
             client.validate_files(remote, files)
+            guard_htaccess(client, remote, files)
             print('SFTP-kontroll OK. Inga fjärrfiler eller mappar ändrades. Skrivbehörighet har inte testats.')
             return
         target = remote
@@ -247,7 +306,7 @@ def main():
         for name in files:
             destination = staging / name
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(ROOT / name, destination)
+            shutil.copyfile(ROOT / 'dist' / name, destination)
         publish(client, target, files, staging)
         print('Publicering klar: %d filer. Mål: ' % EXPECTED_FILES + target)
 

@@ -10,12 +10,26 @@
  *   2. Evera – For Family     (kugghjulet)
  *
  * Den orange rutan ligger kvar ovanför; den blå rutan växer fram under den.
- * Klick på ett val öppnar mikrofonläget inne i samma ruta. Nytt klick på den
- * orange rutan (eller Esc) drar ihop den blå rutan igen.
+ * Nytt klick på den orange rutan (eller Esc) drar ihop den blå rutan igen.
  * Stilar: assets/css/main.css, avsnitt 8.
+ *
+ * Båda valen pratar med den riktiga Evera-agenten hos ElevenLabs, i vår egen
+ * grafik (ingen ElevenLabs-widget). Klick på loggan eller kugghjulet startar
+ * samtalet direkt; då frågar webbläsaren om mikrofonen. "End conversation"
+ * avslutar, "Talk with Evera" startar igen. ElevenLabs officiella klientbibliotek
+ * (@elevenlabs/client) förladdas när röstrutan öppnas, i en låst version med
+ * SRI-kontroll. Agent-ID:t är publikt och ingen hemlig nyckel. Språk, röst, prompt
+ * och om textchatt tillåts styrs i agentens inställningar hos ElevenLabs.
  */
 (function () {
   'use strict';
+
+  // Mikrofonen fungerar bara på säkra (https) sidor. Den som kommer via http://evera.care
+  // skickas därför till https-adressen, annars kan Evera aldrig höra besökaren.
+  if (location.protocol === 'http:' && /(^|\.)evera\.care$/i.test(location.hostname)) {
+    location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+    return;
+  }
 
   var pill = document.querySelector('.pill');
   var hero = document.querySelector('.hero');
@@ -27,15 +41,26 @@
   var CANVAS_SCALE = 2.2;                       // ritytan är 2,2 gånger valkortet, så molnet aldrig klipps
   var TILE_ZOOM = 1.55 / CANVAS_SCALE, STAGE_ZOOM = 1.05;
 
+  // ---- ElevenLabs ----
+  var EVERA_AGENT_ID = 'agent_0601m6thxhtjfg3aat6ky67404m0';
+  var ELEVENLABS_SDK = {
+    src: 'https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.30.0/dist/lib.iife.js',
+    // SHA-384 av dist/lib.iife.js i npm-paketet @elevenlabs/client@1.30.0. Byts versionen måste hashen räknas om.
+    integrity: 'sha384-hPgJNi1c2YcrBRYV0/hWcnVoupGSAtCvWGc9YTFFJhgLCno7/4I/XJmYswB4Jc4N'
+  };
+  // Omsamplaren som biblioteket annars hämtar från jsDelivr utan hashkontroll; vi lägger den på egen server.
+  var LIBSAMPLERATE_PATH = new URL('assets/js/vendor/libsamplerate.worklet.js', document.baseURI).href;
+  // Bibliotekets två ljudprocessorer (oförändrade kopior ur npm-paketet, samma version som ELEVENLABS_SDK).
+  // Från egen server slipper sidans Content-Security-Policy tillåta blob:- och data:-skript.
+  var WORKLET_PATHS = {
+    rawAudioProcessor: new URL('assets/js/vendor/rawAudioProcessor.js', document.baseURI).href,
+    audioConcatProcessor: new URL('assets/js/vendor/audioConcatProcessor.js', document.baseURI).href
+  };
+  var CONNECT_TIMEOUT_MS = 20000;               // ger upp om uppkopplingen hänger
+
   var MODES = {
-    presence: {
-      title: 'Your Presence', shape: 'logo',
-      lines: ['Hi, I am Evera. I am here with you, every day.', 'I listen, I remember, and I notice when something changes.']
-    },
-    family: {
-      title: 'For Family', shape: 'gear',
-      lines: ['Hi! Here you can follow and adjust how Evera helps the people you care about.', 'You will know when something changes, and you can change the settings at any time.']
-    }
+    presence: { title: 'Your Presence', shape: 'logo', agentId: EVERA_AGENT_ID },
+    family: { title: 'For Family', shape: 'gear', agentId: EVERA_AGENT_ID }
   };
 
   // ---- DOM ----
@@ -56,8 +81,12 @@
   var hint = el('p', 'vembed__hint'); hint.textContent = 'Choose how you want to talk with Evera';
   var options = el('div', 'vembed__options');
   chooser.appendChild(options);   // ingen rubrik; hint visas bara om WebGL2 saknas
+  // Syns innan samtalet startar: ett tryck på loggan eller kugghjulet öppnar mikrofonen direkt.
+  var note = el('p', 'vembed__note');
+  note.textContent = 'Choosing one starts a voice call. Your voice is sent to ElevenLabs, our speech service, so that Evera can hear and answer you.';
+  chooser.appendChild(note);
 
-  var stage = el('div', 'vembed__stage', { hidden: '', 'aria-live': 'polite' });
+  var stage = el('div', 'vembed__stage', { hidden: '' });
   stage.innerHTML =
     '<div class="vstage__view"></div>' +
     '<div class="vstage__top">' +
@@ -66,12 +95,11 @@
       '<span class="vstage__spacer" aria-hidden="true"></span>' +
     '</div>' +
     '<div class="vstage__bottom">' +
-      '<p class="vstage__status"></p>' +
+      '<p class="vstage__status" role="status" aria-live="polite"></p>' +
       '<div class="vstage__row">' +
-        '<button class="vbtn" type="button" data-act="mic" aria-pressed="false">🎙 Microphone</button>' +
-        '<button class="vbtn" type="button" data-act="hold" hidden>Hold to talk</button>' +
-        '<button class="vbtn" type="button" data-act="speak">Let Evera speak</button>' +
+        '<button class="vbtn" type="button" data-act="call" aria-pressed="false">🎙 Talk with Evera</button>' +
       '</div>' +
+      '<p class="vstage__note">Your voice is sent to ElevenLabs, our speech service, so that Evera can hear and answer you.</p>' +
     '</div>';
 
   inner.appendChild(chooser); inner.appendChild(stage);
@@ -80,7 +108,7 @@
 
   Object.keys(MODES).forEach(function (key) {
     var m = MODES[key];
-    var b = el('button', 'vopt', { type: 'button', 'data-mode': key, 'aria-label': 'Evera – ' + m.title + '. Opens microphone mode.' });
+    var b = el('button', 'vopt', { type: 'button', 'data-mode': key, 'aria-label': 'Evera – ' + m.title + '. Starts a voice conversation with Evera; your browser will ask for the microphone.' });
     var view = el('span', 'vopt__view');
     var canvas = el('canvas', null, { 'aria-hidden': 'true' });
     view.appendChild(canvas);
@@ -98,9 +126,7 @@
   var stageTitle = stage.querySelector('.vstage__title span');
   var status = stage.querySelector('.vstage__status');
   var backBtn = stage.querySelector('.vbtn--back');
-  var micBtn = stage.querySelector('[data-act="mic"]');
-  var holdBtn = stage.querySelector('[data-act="hold"]');
-  var speakBtn = stage.querySelector('[data-act="speak"]');
+  var callBtn = stage.querySelector('[data-act="call"]');
 
   // ---- svärmarna skapas först när rutan öppnas första gången ----
   var mounted = false;
@@ -120,7 +146,7 @@
   function eachSwarm(fn) { Object.keys(MODES).forEach(function (k) { if (MODES[k].swarm) fn(MODES[k].swarm, MODES[k]); }); }
   function cancelAll(node) { node.getAnimations().forEach(function (a) { a.cancel(); }); }
 
-  var isOpen = false, busy = false, active = null, lineIx = 0;
+  var isOpen = false, busy = false, active = null;
 
   // Flytta fokus bara för den som använder tangentbordet. Med mus/touch tas fokus
   // bort i stället, annars ritar webbläsaren ibland en fokusram runt knapparna.
@@ -142,6 +168,7 @@
       var r = pill.getBoundingClientRect();
       pillSize = { w: r.width, h: r.height };
       var ok = mountSwarms();
+      loadSdk().catch(function () { /* nytt försök görs när samtalet startar */ });
       eachSwarm(function (s) { s.setZoom(TILE_ZOOM); s.setLoop(true); s.restart(); s.pause(); });
 
       // den orange rutan ligger kvar; den blå rutan växer fram under den
@@ -194,28 +221,16 @@
   // den orange rutan öppnar och stänger
   pill.addEventListener('click', function () { if (isOpen) close(); else open(); });
 
-  // ---- mikrofonläge inne i rutan ----
-  function setStatus(t) { status.textContent = t; }
-
-  function startMic() {
-    return active.swarm.listenMic().then(function () {
-      micBtn.hidden = false; holdBtn.hidden = true;
-      micBtn.classList.add('is-on'); micBtn.setAttribute('aria-pressed', 'true'); micBtn.textContent = '🎙 Listening';
-      setStatus('Go ahead, I am listening');
-    }).catch(function () {
-      micBtn.hidden = true; holdBtn.hidden = false;
-      setStatus('The microphone is not available. Hold the button to simulate your voice.');
-    });
-  }
-  function stopMic() {
-    if (!active) return;
-    active.swarm.stopMic();
-    micBtn.classList.remove('is-on'); micBtn.setAttribute('aria-pressed', 'false'); micBtn.textContent = '🎙 Microphone';
+  // ---- samtalsläget inne i rutan ----
+  // quiet = visa texten men läs inte upp den för skärmläsare (t.ex. talar/lyssnar-växlingar)
+  function setStatus(t, quiet) {
+    status.setAttribute('aria-live', quiet ? 'off' : 'polite');
+    status.textContent = t;
   }
 
   function openStage(key) {
     if (!isOpen || busy || !MODES[key].swarm) return;
-    active = MODES[key]; lineIx = 0;
+    active = MODES[key];
     eachSwarm(function (s, m) { if (m !== active) s.pause(); });
     stageView.appendChild(active.canvas);
     active.swarm.setZoom(STAGE_ZOOM);
@@ -223,15 +238,16 @@
     stageTitle.textContent = active.title;
     chooser.hidden = true; stage.hidden = false; box.classList.add('is-stage');
     if (!reduce) stage.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: 'ease-out' });
-    micBtn.hidden = false; holdBtn.hidden = true;
     if (window.everaSound && window.everaSound.duck) window.everaSound.duck(true);   // musiken tystnar så att mikrofonen inte hör den
-    setStatus('Starting the microphone…');
-    startMic();   // klicket räknas som tillåtelse att fråga om mikrofonen
+    // Klicket på loggan/kugghjulet startar samtalet direkt (webbläsaren frågar om mikrofonen);
+    // knappen visar "End conversation" från start.
+    setCallUi('idle');
+    startCall();
     moveFocus(backBtn);
   }
   function closeStage(silent) {
     if (!active) return;
-    stopMic(); stopHold();
+    endCall();
     if (window.everaSound && window.everaSound.duck) window.everaSound.duck(false);
     active.view.appendChild(active.canvas);
     active.swarm.setZoom(TILE_ZOOM);
@@ -243,34 +259,188 @@
   }
   backBtn.addEventListener('click', function () { closeStage(false); });
 
-  micBtn.addEventListener('click', function () {
-    if (micBtn.classList.contains('is-on')) { stopMic(); setStatus('Microphone off'); }
-    else { setStatus('Starting the microphone…'); startMic(); }
-  });
-
-  // simulerad röst när mikrofon saknas
-  var holding = false, t0 = 0;
-  function tick(now) {
-    if (!holding || !active) return;
-    var t = (now - t0) / 1000;
-    active.swarm.setLevel('user', 0.35 + 0.5 * Math.abs(Math.sin(t * 13.5)) * (0.6 + 0.4 * Math.sin(t * 2.3)));
-    requestAnimationFrame(tick);
+  // ---- samtal med Evera via ElevenLabs ----
+  var sdkPromise = null;
+  function loadSdk() {
+    if (window.ElevenLabsClient && window.ElevenLabsClient.Conversation) return Promise.resolve(window.ElevenLabsClient);
+    if (sdkPromise) return sdkPromise;
+    sdkPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = ELEVENLABS_SDK.src;
+      s.integrity = ELEVENLABS_SDK.integrity;
+      s.crossOrigin = 'anonymous';
+      s.async = true;
+      s.onload = function () {
+        if (window.ElevenLabsClient && window.ElevenLabsClient.Conversation) resolve(window.ElevenLabsClient);
+        else { sdkPromise = null; reject(namedError('SdkLoadError', 'The ElevenLabs library did not load')); }
+      };
+      s.onerror = function () { sdkPromise = null; s.remove(); reject(namedError('SdkLoadError', 'The ElevenLabs library could not be downloaded')); };
+      document.head.appendChild(s);
+    });
+    return sdkPromise;
   }
-  function startHold(e) { e.preventDefault(); if (holding) return; holding = true; t0 = performance.now(); holdBtn.classList.add('is-on'); setStatus('You are talking…'); requestAnimationFrame(tick); }
-  function stopHold() { if (!holding) return; holding = false; holdBtn.classList.remove('is-on'); if (active) { active.swarm.setLevel('user', 0); setStatus('Hold the button again to talk'); } }
-  holdBtn.addEventListener('pointerdown', startHold);
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (n) { holdBtn.addEventListener(n, stopHold); });
-  holdBtn.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') startHold(e); });
-  holdBtn.addEventListener('keyup', stopHold);
+  function namedError(name, message) { var e = new Error(message); e.name = name; return e; }
 
-  speakBtn.addEventListener('click', function () {
-    if (!active) return;
-    var text = active.lines[lineIx++ % active.lines.length];
-    setStatus('“' + text + '”');
-    speakBtn.classList.add('is-evera');
-    active.swarm.speak(text, 'en-US');
-    setTimeout(function () { speakBtn.classList.remove('is-evera'); }, Math.max(2, text.split(' ').length * 0.38) * 1000);
+  // iPhone: ljudknappen (sound.js) ställer Safaris ljudsession på "playback" så att musiken
+  // hörs i ljudlöst läge. I det läget avvisar Safari mikrofonen direkt med InvalidStateError,
+  // utan att fråga. Under samtalet används därför "play-and-record".
+  function captureAudioSession(on) {
+    if (window.everaSound && window.everaSound.setCapture) { window.everaSound.setCapture(on); return; }
+    try { if (navigator.audioSession) navigator.audioSession.type = on ? 'play-and-record' : 'auto'; } catch (e) { /* stöds inte */ }
+  }
+
+  // callState: idle | connecting | connected
+  var call = null, callState = 'idle', callSeq = 0, levelRaf = 0, lastToggle = 0;
+  var pendingAttempt = Promise.resolve();       // högst en uppkoppling åt gången, även efter avbrott
+  function setCallUi(state, msg) {
+    callState = state;
+    lastToggle = Date.now();
+    var on = state !== 'idle';
+    callBtn.classList.toggle('is-on', on);
+    callBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    callBtn.textContent = state === 'idle' ? '🎙 Talk with Evera' : 'End conversation';
+    callBtn.classList.remove('is-evera');
+    if (msg !== undefined) setStatus(msg);
+    else if (state === 'idle') setStatus('Press “Talk with Evera” to start. Your browser will ask to use the microphone.');
+    else if (state === 'connecting') setStatus('Connecting to Evera… Allow the microphone if your browser asks.');
+  }
+  // röstnivåer från samtalet styr kulorna
+  function voiceLevel(v) { return Math.min(1, Math.max(0, (v - 0.02) * 3.2)); }
+  function pumpLevels() {
+    if (!call || !active) { levelRaf = 0; return; }
+    try {
+      active.swarm.setLevel('user', voiceLevel(call.getInputVolume()));
+      active.swarm.setLevel('evera', voiceLevel(call.getOutputVolume()));
+    } catch (e) { /* samtalet kan just ha stängts */ }
+    levelRaf = requestAnimationFrame(pumpLevels);
+  }
+  function clearLevels() {
+    if (levelRaf) cancelAnimationFrame(levelRaf);
+    levelRaf = 0;
+    eachSwarm(function (s) { s.setLevel('user', 0); s.setLevel('evera', 0); });
+  }
+
+  var MIC_DENIED = { NotAllowedError: 1, SecurityError: 1 };
+  var MIC_MISSING = { NotFoundError: 1, NotReadableError: 1, OverconstrainedError: 1 };
+  function errorCode(n, m) { return ' (' + [n && n !== 'Error' ? n : '', String(m || '').slice(0, 70)].filter(Boolean).join(': ') + ')'; }
+  function callErrorText(err) {
+    var n = (err && err.name) || '', m = String((err && err.message) || err || '');
+    var code = errorCode(n, m);   // kort felkod för felsökning
+    if (n === 'NoMicSupport')
+      return 'This browser cannot use the microphone here. Open evera.care in Safari or Chrome (not inside another app) and try again.';
+    if (MIC_DENIED[n])
+      return 'Evera needs the microphone. Allow microphone access for evera.care (in iPhone: Settings › Safari › Microphone) and try again.' + code;
+    if (MIC_MISSING[n])
+      return 'No working microphone was found, or another app is using it. Close other calls and try again.' + code;
+    if (n === 'ConnectTimeout')
+      return 'Evera did not answer in time. Check your internet connection and try again.';
+    if (n === 'SessionConnectionError' && /origin|allowlist|unauthori[sz]ed|forbidden|401|403|authenticat/i.test(m))
+      return 'Evera is not open for calls from this website yet.' + code;
+    return 'Could not connect to Evera right now. Please try again in a moment.' + code;
+  }
+
+  // Mikrofontillståndet frågas direkt i besökarens tryck, så att frågan säkert visas på
+  // mobilen. Strömmen stängs genast igen; ElevenLabs-biblioteket öppnar sin egen.
+  function requestMicInGesture() {
+    var md = navigator.mediaDevices;
+    if (!window.isSecureContext || !md || !md.getUserMedia) return Promise.reject(namedError('NoMicSupport', 'no mediaDevices'));
+    try {
+      return md.getUserMedia({ audio: true });   // samma enkla anrop som ElevenLabs dokumentation
+    } catch (err) { return Promise.reject(err); }
+  }
+  function stopStream(stream) {
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+  }
+
+  function failCall(seq, err) {
+    if (seq !== callSeq) return;
+    callSeq++;                                  // ett sent svar från uppkopplingen avslutas direkt
+    call = null; clearLevels();
+    captureAudioSession(false);
+    setCallUi('idle', callErrorText(err));
+  }
+
+  function startCall() {
+    if (!active || !active.agentId || callState !== 'idle') return;
+    var mode = active, seq = ++callSeq;
+    setCallUi('connecting');
+    // Måste ske synkront i trycket (före första await): ljudsessionen och mikrofonfrågan.
+    // Ljudet på iPhone låses upp av ElevenLabs-biblioteket självt i samma tryck.
+    captureAudioSession(true);
+    var micReady = requestMicInGesture().then(function (stream) { stopStream(stream); }, function (err) {
+      // nekad eller saknad mikrofon: stoppa här. Andra fel: låt ElevenLabs-biblioteket försöka själv.
+      if (MIC_DENIED[err && err.name] || MIC_MISSING[err && err.name] || (err && err.name) === 'NoMicSupport') throw err;
+      if (window.console) console.warn('[Evera] första mikrofonfrågan misslyckades, försöker igen via ElevenLabs:', err);
+    });
+    var timer = setTimeout(function () {
+      if (seq === callSeq && callState === 'connecting') failCall(seq, namedError('ConnectTimeout', 'timeout'));
+    }, CONNECT_TIMEOUT_MS);
+
+    // vänta in ett tidigare avbrutet försök (högst 2 s), så att samtal inte staplas på varandra
+    var previous = Promise.race([pendingAttempt, new Promise(function (r) { setTimeout(r, 2000); })]);
+    var attempt = Promise.all([micReady, loadSdk(), previous]).then(function (res) {
+      var sdk = res[1];
+      if (seq !== callSeq) return null;
+      return sdk.Conversation.startSession({
+        agentId: mode.agentId,
+        connectionType: 'websocket',            // samma som ElevenLabs egen widget använder som standard
+        libsampleratePath: LIBSAMPLERATE_PATH,
+        workletPaths: WORKLET_PATHS,
+        onConnect: function () {
+          if (seq !== callSeq) return;
+          clearTimeout(timer);
+          setCallUi('connected', 'Connected. Go ahead, Evera is listening.');
+        },
+        onDisconnect: function (details) {
+          if (seq !== callSeq) return;
+          callSeq++;
+          clearTimeout(timer);
+          call = null; clearLevels();
+          captureAudioSession(false);
+          var reason = details && details.reason;
+          setCallUi('idle', reason === 'error'
+            ? 'The conversation was interrupted. Press “Talk with Evera” to try again.' + errorCode('', details.message || details.closeReason)
+            : reason === 'agent'
+              ? 'Evera ended the conversation. Press “Talk with Evera” to talk again.'
+              : 'The conversation has ended. Press “Talk with Evera” to talk again.');
+        },
+        onError: function (message, context) {
+          if (window.console) console.warn('[Evera] fel i samtalet:', message, context);
+        },
+        onModeChange: function (p) {
+          if (seq !== callSeq || callState !== 'connected') return;
+          var speaking = p && p.mode === 'speaking';
+          callBtn.classList.toggle('is-evera', speaking);
+          setStatus(speaking ? 'Evera is speaking…' : 'Evera is listening…', true);
+        }
+      });
+    }).then(function (conv) {
+      clearTimeout(timer);
+      if (!conv) return;
+      if (seq !== callSeq) return conv.endSession();   // avbrutet eller för sent: stäng direkt
+      call = conv;
+      if (!levelRaf) levelRaf = requestAnimationFrame(pumpLevels);
+    }).catch(function (err) {
+      clearTimeout(timer);
+      if (window.console) console.warn('[Evera] samtalet kunde inte starta:', err);
+      failCall(seq, err);
+    });
+    pendingAttempt = attempt.catch(function () {});
+  }
+  function endCall() {
+    callSeq++;
+    var c = call; call = null;
+    clearLevels();
+    if (c) { try { c.endSession(); } catch (e) { /* redan stängd */ } }
+    captureAudioSession(false);
+    if (callState !== 'idle') setCallUi('idle');
+  }
+  callBtn.addEventListener('click', function () {
+    if (Date.now() - lastToggle < 500) return;   // dubbeltryck ska inte starta och avbryta direkt
+    if (callState === 'idle') startCall();
+    else { endCall(); setStatus('The conversation has ended. Press “Talk with Evera” to talk again.'); }
   });
+  window.addEventListener('pagehide', endCall);
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;

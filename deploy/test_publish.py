@@ -14,6 +14,8 @@ class Fake:
     def listing(self, path): return dict(self.tree[path])
     ensure_dir = p.SFTP.ensure_dir
     validate_files = p.SFTP.validate_files
+    foreign_htaccess = False
+    def htaccess_is_ours(self, remote): return not self.foreign_htaccess
     def run(self, commands):
         import shlex
         for command in commands:
@@ -35,7 +37,7 @@ class Fake:
 class Tests(unittest.TestCase):
     def test_manifest_and_index_last(self):
         files = p.load_manifest()
-        self.assertEqual(len(files),22)
+        self.assertEqual(len(files),p.EXPECTED_FILES)
         self.assertEqual(files[-1],'index.html')
         self.assertNotIn('README.md',files)
     def test_unsafe_remote_paths(self):
@@ -64,20 +66,71 @@ class Tests(unittest.TestCase):
         p.publish(fake,'/www',p.load_manifest())
         puts=[c for c in fake.commands if c.startswith('put ')]
         renames=[c for c in fake.commands if c.startswith('rename ')]
-        self.assertEqual(len(puts),22); self.assertEqual(len(renames),22)
+        self.assertEqual(len(puts),p.EXPECTED_FILES); self.assertEqual(len(renames),p.EXPECTED_FILES)
         self.assertTrue(renames[-1].endswith('/index.html"'))
         self.assertEqual(fake.tree['/www']['unrelated.txt'],'-')
         self.assertEqual(fake.tree['/www']['other-link'],'l')
         self.assertFalse(any(name.startswith('.evera-upload-') for entries in fake.tree.values() for name in entries))
         self.assertFalse(any(c.startswith(('rm ','rmdir ','!','ssh ')) for c in fake.commands))
+    def make_site(self, root):
+        """Ett litet men giltigt träd: källfiler, dist/ och dist-lock.json som hör ihop."""
+        import hashlib
+        files=['index.html','.htaccess']+['f'+str(i) for i in range(p.EXPECTED_FILES-2)]
+        (root/'deploy').mkdir(); (root/'dist').mkdir()
+        (root/'deploy/manifest.json').write_text(json.dumps({'files':files}))
+        lock={}
+        for name in files:
+            source='deploy/htaccess.template' if name=='.htaccess' else name
+            (root/source).write_text('source '+name); (root/'dist'/name).write_text('built '+name)
+            lock[name]={'source':source,
+                'sourceSha256':hashlib.sha256(('source '+name).encode()).hexdigest(),
+                'distSha256':hashlib.sha256(('built '+name).encode()).hexdigest()}
+        (root/'deploy/dist-lock.json').write_text(json.dumps({'files':lock}))
+        return files
     def test_local_symlink_rejected(self):
         with tempfile.TemporaryDirectory() as d:
-            root=Path(d); (root/'deploy').mkdir()
-            files=['index.html']+['f'+str(i) for i in range(19)]
-            (root/'deploy/manifest.json').write_text(json.dumps({'files':files}))
-            for name in files: (root/name).write_text('x')
-            (root/'f0').unlink(); (root/'f0').symlink_to(root/'index.html')
-            with self.assertRaises(p.DeployError): p.load_manifest(root)
+            root=Path(d); self.make_site(root)
+            p.load_manifest(root)   # giltigt träd ska godtas
+            (root/'dist/f0').unlink(); (root/'dist/f0').symlink_to(root/'dist/index.html')
+            with self.assertRaisesRegex(p.DeployError,'symboliska länkar'): p.load_manifest(root)
+    def test_stale_or_edited_dist_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.make_site(root)
+            (root/'f1').write_text('source changed after build')
+            with self.assertRaisesRegex(p.DeployError,'Källfilen har ändrats'): p.load_manifest(root)
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.make_site(root)
+            (root/'dist/f1').write_text('edited by hand')
+            with self.assertRaisesRegex(p.DeployError,'stämmer inte med senaste bygget'): p.load_manifest(root)
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.make_site(root)
+            (root/'dist/app.js.map').write_text('{}')
+            with self.assertRaisesRegex(p.DeployError,'inte står i manifestet'): p.load_manifest(root)
+    def test_source_maps_and_typescript_never_in_manifest(self):
+        for bad in ('assets/js/app.js.map','assets/js/app.ts','Logo.TSX'):
+            with tempfile.TemporaryDirectory() as d:
+                root=Path(d); files=self.make_site(root); files[-1]=bad
+                (root/'deploy/manifest.json').write_text(json.dumps({'files':files}))
+                with self.subTest(bad=bad), self.assertRaisesRegex(p.DeployError,'publiceras inte'): p.load_manifest(root)
+    def test_published_files_are_the_built_ones(self):
+        files=p.load_manifest()
+        self.assertIn('.htaccess',files)
+        own=(p.ROOT/'dist/assets/js/evera-voice.js').read_text()
+        self.assertNotIn('/*',own); self.assertNotIn('sourceMappingURL',own)
+        self.assertNotIn('<!--',(p.ROOT/'dist/index.html').read_text())
+        htaccess=(p.ROOT/'dist/.htaccess').read_text().split('\n')
+        self.assertEqual(htaccess[0],p.HTACCESS_MARKER)
+        self.assertFalse([l for l in htaccess[1:] if l.startswith('#')])
+        for name in files:   # leverantörsfiler och binärer publiceras oförändrade
+            if name.startswith('assets/js/vendor/'):
+                self.assertEqual((p.ROOT/name).read_bytes(),(p.ROOT/'dist'/name).read_bytes())
+    def test_foreign_htaccess_is_never_overwritten(self):
+        fake=Fake(); fake.tree['/www']['.htaccess']='-'; fake.foreign_htaccess=True
+        with self.assertRaisesRegex(p.DeployError,'skrivs inte över'): p.publish(fake,'/www',p.load_manifest())
+        self.assertEqual(fake.commands,[])
+        fake=Fake(); fake.tree['/www']['.htaccess']='-'   # vår egen från en tidigare publicering
+        p.publish(fake,'/www',p.load_manifest())
+        self.assertEqual(len([c for c in fake.commands if c.startswith('put ')]),p.EXPECTED_FILES)
     def test_subprocess_security_and_timeout(self):
         env={'SFTP_HOST':'sftp.example.test','SFTP_USER':'evera','SFTP_PASSWORD':'test-only-secret',
              'SFTP_KNOWN_HOSTS':'sftp.example.test ssh-ed25519 AAAA-test-placeholder'}
@@ -103,8 +156,9 @@ class Tests(unittest.TestCase):
         denied=subprocess.run(['python3',script,'Host authenticity?'],env=env,capture_output=True,text=True)
         self.assertNotEqual(denied.returncode,0); self.assertEqual(denied.stdout,'')
 
-if __name__ == '__main__': unittest.main()
 
 class OneComFormat(unittest.TestCase):
     def test_unknown_link_count(self):
         self.assertEqual(p.parse_listing("drwxr-xr-x ? 0 0 4096 Nov 02 14:00 /."), {"/.": "d"})
+
+if __name__ == '__main__': unittest.main()

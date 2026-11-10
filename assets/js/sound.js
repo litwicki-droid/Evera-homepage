@@ -119,9 +119,21 @@
     }
   }
 
+  // iPhone (Safari 16.4+): "playback" låter musiken höras även i ljudlöst läge, men i det
+  // läget avvisar Safari mikrofonen. Under ett röstsamtal (evera-voice.js) används därför
+  // "play-and-record", och "playback" sätts först när samtalet är slut.
+  var capturing = false;
+  function audioSessionType(type) {
+    if (!navigator.audioSession) return;
+    try { navigator.audioSession.type = type; } catch (e) {}
+  }
+  function setCapture(state) {
+    capturing = !!state;
+    audioSessionType(capturing ? 'play-and-record' : (on ? 'playback' : 'auto'));
+  }
+
   function set(state) {
-    // iPhone: spela även när telefonen står på ljudlöst läge (Safari 16.4+)
-    if (state && navigator.audioSession) { try { navigator.audioSession.type = 'playback'; } catch (e) {} }
+    if (state && !capturing) audioSessionType('playback');
     if (state && !ctx && !init()) return;
     on = state;
     btn.setAttribute('aria-pressed', String(on));
@@ -270,7 +282,7 @@
     master.gain.setTargetAtTime(ducked ? 0 : VOLUME, now, ducked ? 0.15 : 0.7);
   }
 
-  window.everaSound = { zap: zap, duck: duck, isOn: function () { return on; } };
+  window.everaSound = { zap: zap, duck: duck, setCapture: setCapture, isOn: function () { return on; } };
 
   var userChose = false;   // besökaren har själv tryckt på knappen: respektera det
   btn.addEventListener('click', function () { userChose = true; set(!on); });

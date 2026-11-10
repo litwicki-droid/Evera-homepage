@@ -1,5 +1,6 @@
 {
   "files": [
+    ".htaccess",
     "assets/css/main.css",
     "assets/fonts/inter-500.woff2",
     "assets/fonts/quicksand-700.woff2",
@@ -16,6 +17,9 @@
     "assets/js/main.js",
     "assets/js/sound.js",
     "assets/js/tilt.js",
+    "assets/js/vendor/audioConcatProcessor.js",
+    "assets/js/vendor/libsamplerate.worklet.js",
+    "assets/js/vendor/rawAudioProcessor.js",
     "assets/js/zap.js",
     "assets/video/evera-bg.mp4",
     "assets/video/evera-bg.webm",
